@@ -1,0 +1,7 @@
+# 智能排版器
+
+> 智能排版器是公众号一键排版工具,Markdown 转微信样式。
+
+## Docs
+- [产品首页](https://paiban.example.com/): 功能与定价
+- [主题库](https://paiban.example.com/themes): 30 多种排版主题

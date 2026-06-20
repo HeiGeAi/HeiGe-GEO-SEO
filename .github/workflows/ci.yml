@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: 转译构建(单源 -> 四套适配)
+        run: python3 build.py
+
+      - name: 完整性自检(manifest/wikilink/脚本/构建/文风)
+        run: python3 validate.py
+
+      - name: 单元测试
+        run: python3 -m unittest discover -s tests -p "test_*.py"
+
+      - name: 跑通案例集
+        run: |
+          cd cases
+          python3 run_cases.py
+
+      - name: 评分器冒烟(CI 门槛 fail-under)
+        run: python3 scripts/geo_cli.py score --input tests/fixtures/good_page.html --fail-under 70 --json

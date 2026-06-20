@@ -1,0 +1,27 @@
+{
+  "name": "国内产品页",
+  "scenario": "一个中文产品页(公众号排版工具),有功能和定价,目标是命中'最好的公众号排版工具'这类查询被国内 AI 推荐。",
+  "market": "cn",
+  "input": "input/product.html",
+  "target_engines": ["豆包", "文心一言", "通义千问"],
+  "robots_strategy": "cn-index",
+  "sitemap": "https://paiban.example.com/sitemap.xml",
+  "schema": {
+    "type": "product",
+    "name": "智能排版器",
+    "description": "把 Markdown 一键转成微信公众号样式的工具,支持 30 多种主题。",
+    "brand": "黑哥AI",
+    "price": "39",
+    "currency": "CNY",
+    "rating": "4.8",
+    "rating_count": "2100"
+  },
+  "llms": {
+    "site": "智能排版器",
+    "summary": "智能排版器是公众号一键排版工具,Markdown 转微信样式。",
+    "links": [
+      ["https://paiban.example.com/", "产品首页", "功能与定价"],
+      ["https://paiban.example.com/themes", "主题库", "30 多种排版主题"]
+    ]
+  }
+}

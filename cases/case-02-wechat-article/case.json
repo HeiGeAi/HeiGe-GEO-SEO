@@ -1,0 +1,25 @@
+{
+  "name": "国内公众号深度文",
+  "scenario": "一篇讲 AI 客服降本的中文深度文,内容有真实数据和案例,但缺结构化数据,目标是被豆包、通义、腾讯元宝、知乎引用。",
+  "market": "cn",
+  "input": "input/article.html",
+  "target_engines": ["豆包", "通义千问", "腾讯元宝", "DeepSeek"],
+  "robots_strategy": "cn-index",
+  "sitemap": "https://heigeai.example.com/sitemap.xml",
+  "schema": {
+    "type": "faqpage",
+    "qa": [
+      ["AI 客服能帮中小企业省多少钱?", "以一家 30 人电商公司为例,人工客服从 8 人减到 3 人,每月人力成本从 4 万元降到 1.5 万元,约 1.2 个月回本。"],
+      ["哪些客服场景不适合用 AI?", "投诉处理、大客户维护、复杂售后不适合全交给 AI,这些需要情绪安抚和灵活判断,应由 AI 接一线、人接疑难。"],
+      ["国内 AI 客服选哪个模型?", "国内中文场景优先豆包或通义千问这类中文能力强的模型。"]
+    ]
+  },
+  "llms": {
+    "site": "黑哥AI",
+    "summary": "黑哥AI 提供中小企业 AI 落地实战内容与工具。",
+    "links": [
+      ["https://heigeai.example.com/ai-service", "AI 客服落地指南", "降本场景与三步落地"],
+      ["https://heigeai.example.com/cases", "实战案例", "真实企业 AI 降本数据"]
+    ]
+  }
+}

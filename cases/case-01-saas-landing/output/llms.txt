@@ -1,0 +1,8 @@
+# FlowDesk
+
+> FlowDesk is a shared-inbox customer support platform for teams.
+
+## Docs
+- [Features](https://flowdesk.example.com/features): Shared inbox, automation, reporting
+- [Pricing](https://flowdesk.example.com/pricing): Plans and free trial
+- [API docs](https://flowdesk.example.com/docs/api): Integration reference

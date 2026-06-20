@@ -1,0 +1,7 @@
+# 黑哥AI
+
+> 黑哥AI 提供中小企业 AI 落地实战内容与工具。
+
+## Docs
+- [AI 客服落地指南](https://heigeai.example.com/ai-service): 降本场景与三步落地
+- [实战案例](https://heigeai.example.com/cases): 真实企业 AI 降本数据

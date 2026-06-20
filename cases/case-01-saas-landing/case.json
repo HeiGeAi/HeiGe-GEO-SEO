@@ -1,0 +1,26 @@
+{
+  "name": "出海 SaaS 落地页",
+  "scenario": "一个英文 SaaS 落地页,内容偏营销话术、缺结构化数据、缺 AI 爬虫配置,目标是被 ChatGPT/Perplexity 引用。",
+  "market": "global",
+  "input": "input/page.html",
+  "target_engines": ["ChatGPT", "Perplexity", "Claude", "Google AI Overviews"],
+  "robots_strategy": "expose-only",
+  "sitemap": "https://flowdesk.example.com/sitemap.xml",
+  "schema": {
+    "type": "faqpage",
+    "qa": [
+      ["What is FlowDesk?", "FlowDesk is a shared-inbox customer support platform that unifies email, chat and social conversations for support teams."],
+      ["Does FlowDesk offer a free trial?", "Yes, FlowDesk offers a 14-day free trial with no credit card required."],
+      ["What integrations does FlowDesk support?", "FlowDesk integrates with Slack, Shopify, Salesforce and over 40 other tools via its API."]
+    ]
+  },
+  "llms": {
+    "site": "FlowDesk",
+    "summary": "FlowDesk is a shared-inbox customer support platform for teams.",
+    "links": [
+      ["https://flowdesk.example.com/features", "Features", "Shared inbox, automation, reporting"],
+      ["https://flowdesk.example.com/pricing", "Pricing", "Plans and free trial"],
+      ["https://flowdesk.example.com/docs/api", "API docs", "Integration reference"]
+    ]
+  }
+}

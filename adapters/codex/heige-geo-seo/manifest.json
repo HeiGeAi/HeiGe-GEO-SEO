@@ -1,0 +1,62 @@
+{
+  "name": "heige-geo-seo",
+  "displayName": "HeiGe-GEO-SEO",
+  "version": "1.0.0",
+  "license": "MIT",
+  "description_zh": "中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。让内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。",
+  "description_en": "China-first Generative Engine Optimization (GEO) + SEO system. Make your content and pages get cited by Doubao, Qwen, DeepSeek, ERNIE, Tencent Yuanbao, ChatGPT, Perplexity, Claude and Gemini.",
+  "homepage": "https://github.com/HeiGeAi/HeiGe-GEO-SEO",
+  "triggers": {
+    "zh": [
+      "GEO优化", "生成式引擎优化", "AI搜索优化", "让AI引用", "被AI引用", "AEO", "答案引擎优化",
+      "让豆包引用我", "让千问引用我", "让DeepSeek引用我", "GEO SEO", "AI可见度", "内容被大模型抓取",
+      "配AI爬虫robots", "生成llms.txt", "网页被AI引用", "做SEO和GEO"
+    ],
+    "en": [
+      "GEO", "generative engine optimization", "AEO", "answer engine optimization", "AI search optimization",
+      "get cited by ChatGPT", "get cited by Perplexity", "optimize content for AI engines", "llms.txt",
+      "AI crawler robots.txt", "schema for AI citation", "AI visibility"
+    ]
+  },
+  "capabilities": [
+    "大模型分类与引用行为判断",
+    "中国优先的 AI 抓取逻辑诊断",
+    "内容发布渠道矩阵与曝光建议",
+    "SEO+GEO 网页架构与代码级建议",
+    "GEO 改写方法(9 方法 + 排名分流 + 域映射 + GEU 护栏)",
+    "GEO 可被引用度评分(6 维 22 项)",
+    "robots.txt / llms.txt / JSON-LD schema 生成"
+  ],
+  "knowledge": [
+    "knowledge/01-llm-landscape.md",
+    "knowledge/02-crawler-logic.md",
+    "knowledge/03-publishing-channels.md",
+    "knowledge/04-webpage-architecture.md"
+  ],
+  "methodology": [
+    "methodology/geo-methods.md",
+    "methodology/scoring-card.md"
+  ],
+  "workflow": [
+    "workflow/stages.md"
+  ],
+  "templates": [
+    "templates/content-brief.md",
+    "templates/geo-content-spec.md",
+    "templates/publishing-plan.md",
+    "templates/webpage-spec.md"
+  ],
+  "scripts": {
+    "entry": "scripts/geo_cli.py",
+    "commands": ["score", "robots", "schema", "llms"],
+    "runtime": "python3",
+    "dependencies": "stdlib-only"
+  },
+  "adapters": ["claude-code", "codex", "openclaw", "hermes"],
+  "principles": [
+    "国内求收录占平台,海外配 robots.txt,两套打法不混用",
+    "按搜索排名档位决定改写激进或收敛",
+    "引语/统计/引用只用真实素材,永不编造,Keyword Stuffing 禁用",
+    "两个人工 checkpoint(专家洞察、质量门 BLOCK)不可绕过"
+  ]
+}

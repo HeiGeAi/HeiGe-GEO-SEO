@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Build / runtime artifacts
+*.log
+/tmp/
+.cache/
+
+# Local test output (keep cases/ committed, ignore ad-hoc runs)
+/scratch/
+*.local.json

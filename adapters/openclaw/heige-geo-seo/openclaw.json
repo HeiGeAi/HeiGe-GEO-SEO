@@ -1,0 +1,52 @@
+{
+  "name": "heige-geo-seo",
+  "displayName": "HeiGe-GEO-SEO",
+  "version": "1.0.0",
+  "entry": "SKILL.md",
+  "triggers": {
+    "zh": [
+      "GEO优化",
+      "生成式引擎优化",
+      "AI搜索优化",
+      "让AI引用",
+      "被AI引用",
+      "AEO",
+      "答案引擎优化",
+      "让豆包引用我",
+      "让千问引用我",
+      "让DeepSeek引用我",
+      "GEO SEO",
+      "AI可见度",
+      "内容被大模型抓取",
+      "配AI爬虫robots",
+      "生成llms.txt",
+      "网页被AI引用",
+      "做SEO和GEO"
+    ],
+    "en": [
+      "GEO",
+      "generative engine optimization",
+      "AEO",
+      "answer engine optimization",
+      "AI search optimization",
+      "get cited by ChatGPT",
+      "get cited by Perplexity",
+      "optimize content for AI engines",
+      "llms.txt",
+      "AI crawler robots.txt",
+      "schema for AI citation",
+      "AI visibility"
+    ]
+  },
+  "scripts": {
+    "entry": "scripts/geo_cli.py",
+    "commands": [
+      "score",
+      "robots",
+      "schema",
+      "llms"
+    ],
+    "runtime": "python3",
+    "dependencies": "stdlib-only"
+  }
+}
