@@ -1,7 +1,7 @@
 {
   "name": "heige-geo-seo",
   "displayName": "HeiGe-GEO-SEO",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "entry": "SKILL.md",
   "triggers": {
     "zh": [
@@ -60,6 +60,7 @@
       "brief",
       "prompts",
       "sov",
+      "recommend",
       "robots",
       "schema",
       "llms",

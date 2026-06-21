@@ -1,7 +1,7 @@
 {
   "name": "heige-geo-seo",
   "displayName": "HeiGe-GEO-SEO",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "license": "MIT",
   "description_zh": "中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。诊断 → 产出 → 度量全链路。让内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。",
   "description_en": "China-first Generative Engine Optimization (GEO) + SEO system: diagnose, produce, measure. Make your content get cited by Doubao, Qwen, DeepSeek, ERNIE, Tencent Yuanbao, ChatGPT, Perplexity, Claude and Gemini.",
@@ -24,6 +24,7 @@
     "大模型分类与引用行为判断",
     "中国优先的 AI 抓取逻辑诊断",
     "内容发布渠道矩阵与曝光建议(含新榜信源权重表)",
+    "平台发布推荐引擎(给目标引擎推荐发哪几个平台权重最高,基于新榜实证)",
     "SEO+GEO 网页架构与代码级建议",
     "GEO 改写方法(9 方法 + 排名分流 + 域映射 + GEU 护栏)",
     "GEO 可被引用度评分(6 维 22 项)",
@@ -60,7 +61,7 @@
   "scripts": {
     "entry": "scripts/geo_cli.py",
     "commands": ["score", "diagnose", "agentready", "batch", "report",
-                 "rewrite", "brief", "prompts", "sov",
+                 "rewrite", "brief", "prompts", "sov", "recommend",
                  "robots", "schema", "llms", "files", "attribution"],
     "runtime": "python3",
     "dependencies": "stdlib-only"

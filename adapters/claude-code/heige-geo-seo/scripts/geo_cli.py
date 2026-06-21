@@ -28,7 +28,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from lib import (htmldoc, scoring, generators, instruction, prompts as promptlib,  # noqa: E402
                  sov as sovlib, diagnose as diaglib, report as reportlib,
-                 attribution, agent_readiness, anti_ai)
+                 attribution, agent_readiness, anti_ai,
+                 platform_recommend as recommendlib)
 
 
 def _read(path):
@@ -333,6 +334,31 @@ def cmd_attribution(args):
     return 0
 
 
+def cmd_recommend(args):
+    if args.reverse:
+        result = recommendlib.reverse(args.reverse)
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, indent=2))
+        else:
+            print("平台「%s」能喂的 AI 引擎(%d 个):" % (
+                result["platform"], result["engine_count"]))
+            for f in result["feeds_engines"]:
+                print("  %s  权重%d  [%s] %s" % (f["engine"], f["weight"],
+                                               f["source"], f["why"]))
+        return 0
+    if not args.engine:
+        print("需要 --engine(可多次,或 cn-all / overseas-all)或 --reverse 平台名",
+              file=sys.stderr)
+        return 2
+    result = recommendlib.recommend(args.engine, content_type=args.content_type,
+                                    top=args.top)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        _emit(recommendlib.render_markdown(result), args.out)
+    return 0
+
+
 # --------------------------------------------------------------------------
 # parser
 # --------------------------------------------------------------------------
@@ -494,6 +520,18 @@ def build_parser():
     at.add_argument("--log", help="access log 文件(解析 AI 爬虫 UA)")
     at.add_argument("--out")
     at.set_defaults(func=cmd_attribution)
+
+    # recommend
+    re_ = sub.add_parser("recommend", help="平台发布推荐(给目标引擎→推荐发哪)")
+    re_.add_argument("--engine", action="append",
+                     help="目标引擎(豆包/元宝/deepseek/kimi/文心/通义/chatgpt/perplexity/gemini/claude 或 cn-all/overseas-all),可多次")
+    re_.add_argument("--content-type", choices=["video", "tech", "种草", "消费"],
+                     help="内容类型(追加适配平台)")
+    re_.add_argument("--reverse", help="反向查:某平台能喂哪些 AI")
+    re_.add_argument("--top", type=int, help="只看前 N 个")
+    re_.add_argument("--json", action="store_true")
+    re_.add_argument("--out")
+    re_.set_defaults(func=cmd_recommend)
 
     return p
 
