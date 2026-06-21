@@ -1,37 +1,48 @@
 {
   "name": "heige-geo-seo",
   "displayName": "HeiGe-GEO-SEO",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "license": "MIT",
-  "description_zh": "中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。让内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。",
-  "description_en": "China-first Generative Engine Optimization (GEO) + SEO system. Make your content and pages get cited by Doubao, Qwen, DeepSeek, ERNIE, Tencent Yuanbao, ChatGPT, Perplexity, Claude and Gemini.",
+  "description_zh": "中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。诊断 → 产出 → 度量全链路。让内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。",
+  "description_en": "China-first Generative Engine Optimization (GEO) + SEO system: diagnose, produce, measure. Make your content get cited by Doubao, Qwen, DeepSeek, ERNIE, Tencent Yuanbao, ChatGPT, Perplexity, Claude and Gemini.",
   "homepage": "https://github.com/HeiGeAi/HeiGe-GEO-SEO",
   "triggers": {
     "zh": [
       "GEO优化", "生成式引擎优化", "AI搜索优化", "让AI引用", "被AI引用", "AEO", "答案引擎优化",
       "让豆包引用我", "让千问引用我", "让DeepSeek引用我", "GEO SEO", "AI可见度", "内容被大模型抓取",
-      "配AI爬虫robots", "生成llms.txt", "网页被AI引用", "做SEO和GEO"
+      "配AI爬虫robots", "生成llms.txt", "网页被AI引用", "做SEO和GEO", "改写指令", "share of voice",
+      "为什么没被AI引用", "AI可见度监控", "prompt集", "GEO brief"
     ],
     "en": [
       "GEO", "generative engine optimization", "AEO", "answer engine optimization", "AI search optimization",
       "get cited by ChatGPT", "get cited by Perplexity", "optimize content for AI engines", "llms.txt",
-      "AI crawler robots.txt", "schema for AI citation", "AI visibility"
+      "AI crawler robots.txt", "schema for AI citation", "AI visibility", "share of voice", "rewrite for GEO",
+      "WebMCP readiness", "AI citation attribution"
     ]
   },
   "capabilities": [
     "大模型分类与引用行为判断",
     "中国优先的 AI 抓取逻辑诊断",
-    "内容发布渠道矩阵与曝光建议",
+    "内容发布渠道矩阵与曝光建议(含新榜信源权重表)",
     "SEO+GEO 网页架构与代码级建议",
     "GEO 改写方法(9 方法 + 排名分流 + 域映射 + GEU 护栏)",
     "GEO 可被引用度评分(6 维 22 项)",
-    "robots.txt / llms.txt / JSON-LD schema 生成"
+    "改写指令编译器(吃打分→出可喂任意 LLM 的改写指令包,LLM 无关)",
+    "GEO Content Brief 生成器 + 反 AI 味约束库",
+    "「为何没被引用」7 根因诊断器",
+    "buyer prompt 集生成 + Share of Voice 度量(三公式+基准阈值+采样置信度)",
+    "GEO 归因检测(GA4 渠道组正则+UTM+AI 爬虫日志解析)",
+    "WebMCP / agent 任务就绪静态审计",
+    "robots.txt / llms.txt / 9 类 AI 发现文件 / 实体层 JSON-LD schema 生成",
+    "批量站点审计 + HTML/SARIF 报告 + CI 回归"
   ],
   "knowledge": [
     "knowledge/01-llm-landscape.md",
     "knowledge/02-crawler-logic.md",
     "knowledge/03-publishing-channels.md",
-    "knowledge/04-webpage-architecture.md"
+    "knowledge/04-webpage-architecture.md",
+    "knowledge/05-engine-differences.md",
+    "knowledge/06-ai-visibility-measurement.md"
   ],
   "methodology": [
     "methodology/geo-methods.md",
@@ -48,15 +59,19 @@
   ],
   "scripts": {
     "entry": "scripts/geo_cli.py",
-    "commands": ["score", "robots", "schema", "llms"],
+    "commands": ["score", "diagnose", "agentready", "batch", "report",
+                 "rewrite", "brief", "prompts", "sov",
+                 "robots", "schema", "llms", "files", "attribution"],
     "runtime": "python3",
     "dependencies": "stdlib-only"
   },
   "adapters": ["claude-code", "codex", "openclaw", "hermes"],
   "principles": [
     "国内求收录占平台,海外配 robots.txt,两套打法不混用",
-    "按搜索排名档位决定改写激进或收敛",
+    "国内平台依附,海外域名主权;生态账号矩阵比独立站权重高",
+    "按搜索排名档位决定改写激进或收敛,按目标引擎差异化",
     "引语/统计/引用只用真实素材,永不编造,Keyword Stuffing 禁用",
+    "度量学离线,采集寄生宿主 agent,不做实时联网监控",
     "两个人工 checkpoint(专家洞察、质量门 BLOCK)不可绕过"
   ]
 }

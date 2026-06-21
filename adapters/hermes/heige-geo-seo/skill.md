@@ -1,12 +1,12 @@
 # HeiGe-GEO-SEO
 
-> 中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。让内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。
+> 中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。诊断 → 产出 → 度量全链路。让内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。
 
 ## 触发
 
-**中文触发词**:GEO优化、生成式引擎优化、AI搜索优化、让AI引用、被AI引用、AEO、答案引擎优化、让豆包引用我、让千问引用我、让DeepSeek引用我、GEO SEO、AI可见度、内容被大模型抓取、配AI爬虫robots、生成llms.txt、网页被AI引用、做SEO和GEO
+**中文触发词**:GEO优化、生成式引擎优化、AI搜索优化、让AI引用、被AI引用、AEO、答案引擎优化、让豆包引用我、让千问引用我、让DeepSeek引用我、GEO SEO、AI可见度、内容被大模型抓取、配AI爬虫robots、生成llms.txt、网页被AI引用、做SEO和GEO、改写指令、share of voice、为什么没被AI引用、AI可见度监控、prompt集、GEO brief
 
-**English triggers**: GEO, generative engine optimization, AEO, answer engine optimization, AI search optimization, get cited by ChatGPT, get cited by Perplexity, optimize content for AI engines, llms.txt, AI crawler robots.txt, schema for AI citation, AI visibility
+**English triggers**: GEO, generative engine optimization, AEO, answer engine optimization, AI search optimization, get cited by ChatGPT, get cited by Perplexity, optimize content for AI engines, llms.txt, AI crawler robots.txt, schema for AI citation, AI visibility, share of voice, rewrite for GEO, WebMCP readiness, AI citation attribution
 
 ---
 
@@ -90,6 +90,41 @@ python3 scripts/geo_cli.py llms --site "示例科技" --summary "一句话简介
 - 不把 llms.txt 当排名杠杆向用户承诺。它是 B2A 基础设施,营销站做了基本无效。
 - 不用一套规则打所有引擎。豆包和 ChatGPT 的偏好不一样,按目标引擎调。
 - 不绕过两个人工 checkpoint。
+
+## v1.1 新增:从「诊断+知识」到「诊断 → 产出 → 度量」
+
+**产出层(最强差异化,商业工具把改写锁死在自家黑盒):**
+
+```bash
+# 改写指令编译器:吃打分 → 出可喂任意 LLM 的精确改写指令包(按目标引擎分叉)
+python3 scripts/geo_cli.py rewrite --input page.html --engine perplexity
+# GEO Content Brief 生成器(以可被引用性为骨架,区别于市面 SEO brief)
+python3 scripts/geo_cli.py brief --topic "公众号怎么排版" --section "X是什么" --engine 豆包
+```
+
+**度量层(成熟 SaaS 命门,我做可解释离线版,采集寄生宿主 agent):**
+
+```bash
+# buyer prompt 集生成(意图问句,漏斗×persona,非品牌优先,中英双语)
+python3 scripts/geo_cli.py prompts --brand 智能排版器 --category 公众号排版工具 --competitor 壹伴
+# Share of Voice 度量(三公式+基准阈值+采样置信度+别名合并)
+python3 scripts/geo_cli.py sov --input records.json --brand 智能排版器 --brand-domain x.com
+# 「为何没被引用」7 根因诊断
+python3 scripts/geo_cli.py diagnose --input page.html
+```
+
+**文件+工程层(对标 aeorank 9 文件):**
+
+```bash
+python3 scripts/geo_cli.py files --out-dir ./ai-files --site 站名 --url https://x.com   # ai.txt/robots.patch/sitemap/feed/humans.txt
+python3 scripts/geo_cli.py schema --type organization --name 公司 --url https://x.com --same-as https://wikidata.org/...
+python3 scripts/geo_cli.py report --input page.html --format sarif   # 接 GitHub Code Scanning
+python3 scripts/geo_cli.py batch a.html b.html --html report.html    # 批量站点审计
+python3 scripts/geo_cli.py attribution --url https://x.com           # GA4 渠道组正则+UTM+日志解析
+python3 scripts/geo_cli.py agentready --input page.html              # WebMCP 表单就绪审计
+```
+
+**新增知识库:** `knowledge/05-engine-differences.md`(引擎差异矩阵)、`knowledge/06-ai-visibility-measurement.md`(度量学)、`03-publishing-channels.md` 补国产引擎信源权重表 + 平台依附 vs 域名主权。
 
 ---
 

@@ -1,10 +1,11 @@
 # HeiGe-GEO-SEO
 
+![Version](https://img.shields.io/badge/version-1.1.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Agents](https://img.shields.io/badge/Agents-Claude%20Code%20·%20Codex%20·%20OpenClaw%20·%20Hermes-blue)
 ![Market](https://img.shields.io/badge/Market-China%20First-red)
 ![Python](https://img.shields.io/badge/Python-stdlib%20only-yellow)
-![Tests](https://img.shields.io/badge/tests-44%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-96%20passing-brightgreen)
 
 > 中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。让你的内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。
 >
@@ -39,6 +40,40 @@ HeiGe-GEO-SEO 把三层缝成一个原创工具:
 | 改写提升被引用率 | GEO 方法库(加引语+41%、按排名分流、合规红线) |
 | 给内容打分 | 评分卡脚本(6 维 22 项,确定性,可进 CI) |
 | 生成配置文件 | robots.txt / llms.txt / JSON-LD schema 一键生成 |
+
+## v1.1 新增:诊断 → 产出 → 度量
+
+v1.0 是「诊断 + 知识」,v1.1 补上「产出」和「度量」两层,全部零依赖可离线,采集寄生宿主 agent。
+
+**产出层(最强差异化,商业工具把改写锁死在自家黑盒,我做 LLM 无关的指令编译器):**
+
+```bash
+# 改写指令编译器:吃打分 → 出可喂任意 LLM 的精确改写指令包(按目标引擎分叉 + 反 AI 味约束)
+python3 scripts/geo_cli.py rewrite --input page.html --engine perplexity
+# GEO Content Brief 生成器(以可被引用性为骨架)
+python3 scripts/geo_cli.py brief --topic "公众号怎么排版" --section "X是什么" --engine 豆包
+```
+
+**度量层(成熟监控 SaaS 的命门,我做可解释离线版):**
+
+```bash
+python3 scripts/geo_cli.py prompts --brand 智能排版器 --category 公众号排版工具 --competitor 壹伴
+python3 scripts/geo_cli.py sov --input records.json --brand 智能排版器 --brand-domain x.com
+python3 scripts/geo_cli.py diagnose --input page.html   # 为何没被引用,7 根因
+```
+
+**文件 + 工程层(对标 aeorank 9 文件):**
+
+```bash
+python3 scripts/geo_cli.py files --out-dir ./out --site 站名 --url https://x.com  # ai.txt/robots.patch/sitemap/feed/humans.txt
+python3 scripts/geo_cli.py schema --type organization --name 公司 --same-as https://wikidata.org/...
+python3 scripts/geo_cli.py report --input page.html --format sarif   # 接 GitHub Code Scanning
+python3 scripts/geo_cli.py batch a.html b.html --html report.html    # 批量审计
+python3 scripts/geo_cli.py attribution --url https://x.com           # GA4 渠道组正则 + UTM + 日志解析
+python3 scripts/geo_cli.py agentready --input page.html              # WebMCP 就绪审计
+```
+
+**知识库增量:** 引擎差异矩阵(05)、AI 可见度度量学(06)、国产引擎信源权重表(新榜 1683.6 万条实证)+ 平台依附 vs 域名主权。完整升级背景见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 快速开始
 

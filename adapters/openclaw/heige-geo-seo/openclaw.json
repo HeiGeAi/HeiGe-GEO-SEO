@@ -1,7 +1,7 @@
 {
   "name": "heige-geo-seo",
   "displayName": "HeiGe-GEO-SEO",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "entry": "SKILL.md",
   "triggers": {
     "zh": [
@@ -21,7 +21,13 @@
       "配AI爬虫robots",
       "生成llms.txt",
       "网页被AI引用",
-      "做SEO和GEO"
+      "做SEO和GEO",
+      "改写指令",
+      "share of voice",
+      "为什么没被AI引用",
+      "AI可见度监控",
+      "prompt集",
+      "GEO brief"
     ],
     "en": [
       "GEO",
@@ -35,16 +41,30 @@
       "llms.txt",
       "AI crawler robots.txt",
       "schema for AI citation",
-      "AI visibility"
+      "AI visibility",
+      "share of voice",
+      "rewrite for GEO",
+      "WebMCP readiness",
+      "AI citation attribution"
     ]
   },
   "scripts": {
     "entry": "scripts/geo_cli.py",
     "commands": [
       "score",
+      "diagnose",
+      "agentready",
+      "batch",
+      "report",
+      "rewrite",
+      "brief",
+      "prompts",
+      "sov",
       "robots",
       "schema",
-      "llms"
+      "llms",
+      "files",
+      "attribution"
     ],
     "runtime": "python3",
     "dependencies": "stdlib-only"

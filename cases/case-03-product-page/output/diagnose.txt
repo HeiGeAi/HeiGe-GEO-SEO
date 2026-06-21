@@ -1,0 +1,9 @@
+裁决: 可被引用障碍较多  失败根因: 4
+[fail] canonical 缺失或不规范  修复:每页 <head> 加 <link rel="canonical">,指向规范 URL,避免 AI 引到错误变体
+[pass] 实体命名跨位置不一致
+[fail] 缺 Organization/Person 来源标注  修复:补 Organization + Person(作者)schema,带 @id 可信链,让 AI 能溯源归因
+[fail] 机器可读关系弱(无 sameAs)  修复:给 Organization/Person 补 sameAs 到 Wikipedia/Wikidata/LinkedIn,建实体关系
+[pass] 开头缺自包含答案块
+[fail] 缺 FAQPage schema  修复:把真实问答对做成 FAQPage JSON-LD(实测 2.7x 引用率)
+[manual] 信息缺口(你没回答→AI 引竞品)  修复:对比目标 prompt 集里你没覆盖的问题,补内容。需跑 prompt 覆盖率(prompts + sov 模块)
+[warn] ICP/网安备案信号缺失(国内收录前置门槛)  修复:国内独立站须完成 ICP 备案并在页脚展示备案号,不备案被国产 AI 收录基本归零

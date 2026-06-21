@@ -16,7 +16,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
-from lib import htmldoc, scoring, generators  # noqa: E402
+from lib import (htmldoc, scoring, generators, diagnose as diaglib,  # noqa: E402
+                 instruction)
 
 
 def render_score(result):
@@ -104,13 +105,26 @@ def run_case(case_dir):
     with open(os.path.join(out, "score-after.txt"), "w", encoding="utf-8") as fh:
         fh.write(render_score(after) + "\n")
 
-    # 5) summary
+    # 5) v1.1 产出层:为何没被引用诊断 + 改写指令包
+    diag = diaglib.diagnose(htmldoc.from_string(html), market=market)
+    with open(os.path.join(out, "diagnose.txt"), "w", encoding="utf-8") as fh:
+        fh.write("裁决: %s  失败根因: %d\n" % (diag["verdict"], diag["failed_count"]))
+        for f in diag["findings"]:
+            fh.write("[%s] %s%s\n" % (f["status"], f["cause"],
+                                     ("  修复:" + f["fix"]) if f["fix"] else ""))
+    engine = (cfg.get("target_engines") or [None])[0]
+    pack = instruction.compile_instructions(before, target_engine=engine)
+    with open(os.path.join(out, "rewrite-instructions.md"), "w", encoding="utf-8") as fh:
+        fh.write(instruction.render_markdown(pack))
+
+    # 6) summary
     summary = build_summary(cfg, before, after)
     with open(os.path.join(out, "SUMMARY.md"), "w", encoding="utf-8") as fh:
         fh.write(summary)
 
     return {"name": cfg["name"], "before": before["score"], "after": after["score"],
-            "before_grade": before["grade"], "after_grade": after["grade"]}
+            "before_grade": before["grade"], "after_grade": after["grade"],
+            "diag_failed": diag["failed_count"], "rewrite_count": pack["instruction_count"]}
 
 
 def build_summary(cfg, before, after):
