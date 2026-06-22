@@ -1,7 +1,7 @@
 {
   "name": "heige-geo-seo",
   "displayName": "HeiGe-GEO-SEO",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "license": "MIT",
   "description_zh": "中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。诊断 → 产出 → 度量全链路。让内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。",
   "description_en": "China-first Generative Engine Optimization (GEO) + SEO system: diagnose, produce, measure. Make your content get cited by Doubao, Qwen, DeepSeek, ERNIE, Tencent Yuanbao, ChatGPT, Perplexity, Claude and Gemini.",

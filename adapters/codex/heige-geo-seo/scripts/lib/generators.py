@@ -241,6 +241,65 @@ def gen_website(name, url, publisher=None):
     return node
 
 
+def gen_breadcrumb(items):
+    """BreadcrumbList。知识库 04 标为全站每页建议上。
+    items: list of (name, url) 或 (name,)(最后一项可无 url)。"""
+    elements = []
+    for i, item in enumerate(items, 1):
+        name = item[0] if isinstance(item, (list, tuple)) else item
+        el = {"@type": "ListItem", "position": i, "name": name}
+        if isinstance(item, (list, tuple)) and len(item) > 1 and item[1]:
+            el["item"] = item[1]
+        elements.append(el)
+    return {"@context": "https://schema.org", "@type": "BreadcrumbList",
+            "itemListElement": elements}
+
+
+def gen_itemlist(name, items):
+    """ItemList。知识库 04/08 标为'最好的 X'/榜单对比页命中尤其有效。
+    items: list of (name, url) 或 dict(可嵌 Product)。"""
+    elements = []
+    for i, item in enumerate(items, 1):
+        if isinstance(item, dict):
+            el = {"@type": "ListItem", "position": i, "item": item}
+        else:
+            nm = item[0] if isinstance(item, (list, tuple)) else item
+            el = {"@type": "ListItem", "position": i, "name": nm}
+            if isinstance(item, (list, tuple)) and len(item) > 1 and item[1]:
+                el["url"] = item[1]
+        elements.append(el)
+    return {"@context": "https://schema.org", "@type": "ItemList",
+            "name": name, "itemListElement": elements}
+
+
+def gen_review(item_name, rating, author, body="", best_rating="5"):
+    """Review。知识库 04 产品/工具页建议上。"""
+    node = {
+        "@context": "https://schema.org",
+        "@type": "Review",
+        "itemReviewed": {"@type": "Thing", "name": item_name},
+        "reviewRating": {"@type": "Rating", "ratingValue": str(rating),
+                         "bestRating": str(best_rating)},
+        "author": {"@type": "Person", "name": author},
+    }
+    if body:
+        node["reviewBody"] = body
+    return node
+
+
+def gen_graph(*nodes):
+    """把多个 schema 节点用 @graph 串成一个图(知识库 04 第2节核心原则:用 @id 关联,
+    别各自孤立)。每个节点去掉自带 @context,顶层统一一个。"""
+    graph = []
+    for n in nodes:
+        if not n:
+            continue
+        m = dict(n)
+        m.pop("@context", None)
+        graph.append(m)
+    return {"@context": "https://schema.org", "@graph": graph}
+
+
 def to_script(node):
     body = json.dumps(node, ensure_ascii=False, indent=2)
     return '<script type="application/ld+json">\n%s\n</script>' % body

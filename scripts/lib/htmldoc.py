@@ -238,7 +238,10 @@ class HtmlDoc:
         return out
 
     def number_count(self):
-        return len(re.findall(r"\d+(?:[.,]\d+)?%?", self.text))
+        # 先剔除 ISO 日期和版本号,避免把 2025-06-22 / 1.2.3 当成统计数字
+        text = re.sub(r"\d{4}-\d{2}-\d{2}", " ", self.text)
+        text = re.sub(r"\bv?\d+\.\d+(?:\.\d+)+\b", " ", text)
+        return len(re.findall(r"\d+(?:[.,]\d+)?%?", text))
 
 
 def from_file(path):

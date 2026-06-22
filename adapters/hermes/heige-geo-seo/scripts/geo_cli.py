@@ -112,6 +112,14 @@ def _split_pair(s, sep="::"):
     return parts[0].strip(), parts[1].strip()
 
 
+def _split_opt(s, sep="::"):
+    """容忍 url 缺省:'名称::url' 或仅 '名称' -> (名称, url|None)。"""
+    if sep in s:
+        name, url = s.split(sep, 1)
+        return (name.strip(), url.strip())
+    return (s.strip(), None)
+
+
 def cmd_schema(args):
     t = args.type
     if t == "article":
@@ -155,6 +163,24 @@ def cmd_schema(args):
     elif t == "website":
         node = generators.gen_website(
             name=args.name, url=args.url, publisher=args.org)
+    elif t == "breadcrumb":
+        items = [_split_opt(x) for x in (args.item or [])]
+        if not items:
+            print("breadcrumb 需要 --item \"名称::url\"(末项 url 可空),可多次", file=sys.stderr)
+            return 2
+        node = generators.gen_breadcrumb(items)
+    elif t == "itemlist":
+        items = [_split_opt(x) for x in (args.item or [])]
+        if not items:
+            print("itemlist 需要 --item \"名称::url\",可多次", file=sys.stderr)
+            return 2
+        node = generators.gen_itemlist(args.name or args.title or "List", items)
+    elif t == "review":
+        if not (args.name and args.rating and args.author):
+            print("review 需要 --name(被评对象)--rating --author", file=sys.stderr)
+            return 2
+        node = generators.gen_review(args.name, args.rating, args.author,
+                                     body=args.description or "")
     else:
         print("unknown schema type", file=sys.stderr)
         return 2
@@ -388,7 +414,8 @@ def build_parser():
     sc = sub.add_parser("schema", help="生成 JSON-LD 结构化数据")
     sc.add_argument("--type", required=True,
                     choices=["article", "faqpage", "howto", "product",
-                             "organization", "person", "website"])
+                             "organization", "person", "website",
+                             "breadcrumb", "itemlist", "review"])
     sc.add_argument("--title")
     sc.add_argument("--name")
     sc.add_argument("--description")
@@ -401,6 +428,7 @@ def build_parser():
     sc.add_argument("--founder", help="organization: 创始人")
     sc.add_argument("--job-title", help="person: 职位")
     sc.add_argument("--knows-about", action="append", help="person: 专长,可多次")
+    sc.add_argument("--item", action="append", help='breadcrumb/itemlist: "名称::url",可多次')
     sc.add_argument("--date-published")
     sc.add_argument("--date-modified")
     sc.add_argument("--qa", action="append", help='faqpage: "问题::答案",可多次')

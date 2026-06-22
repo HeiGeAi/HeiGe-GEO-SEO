@@ -61,7 +61,6 @@ def diagnose(doc, market="auto"):
 
     # 5. 缺 40-60 词自包含答案块
     head_len = _first_block_len(doc)
-    has_answer = _ANSWER_WORDS_MIN <= head_len <= _ANSWER_WORDS_MAX or head_len >= _ANSWER_WORDS_MIN
     add("开头缺自包含答案块", _ANSWER_WORDS_MIN <= head_len <= _ANSWER_WORDS_MAX,
         "页面/每节开头放 40-60 词自包含直接答案(中文 30~90 字),主谓宾齐全可整句抽走")
 

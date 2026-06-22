@@ -1,5 +1,26 @@
 # Changelog
 
+## v1.3.1 (2026-06-22)
+
+The Agency 六位专家(GEO引用策略/AEO基础/SEO/百度SEO/agentic搜索/代码审查)并行审查后的修正版。
+
+### 修真 bug(专家挖出、已复现)
+
+- `number_count` 把日期 `2025-06-22`、版本号 `1.2.3` 当成统计数字,导致评分卡 D5「内容可抽取性」虚高。修正:计数前剔除 ISO 日期和版本号。
+- `_domain` 用 `lstrip("www.")` 实为字符集剥离,把 `webflow.com` 削成 `ebflow.com`,污染 SoV 引用归属。修正:只剥 `www.` 前缀。
+- 删两处死代码(`diagnose.has_answer` 自相矛盾、`reverse` 子串过宽导致 `reverse("网")` 命中全部引擎)。
+- 补 19 个边界与回归测试(空 HTML、畸形标签、空 records、日期误判、域名前缀、短查询、未知引擎),堵住"happy path 裸奔"。
+
+### 补 AEO 承诺但没实现的 schema(修文档与代码的一致性裂缝)
+
+知识库 04 标了「必上/建议上」却没实现的 schema,现已补到 `generators.py` 并接入 CLI:
+
+- `gen_breadcrumb`(BreadcrumbList)、`gen_itemlist`(ItemList,命中"最好的 X")、`gen_review`(Review)
+- `gen_graph`(用 `@graph` + `@id` 把多个 schema 串成可信链,落实知识库 04 第2节核心原则)
+- `instruction` 引擎分叉表补齐 grok/copilot/通义(与 platform_recommend 对齐)
+
+测试 119 → 138 全过。
+
 ## v1.3.0 (2026-06-21)
 
 ### 全球场景补全(把"中国优先,海外作对照"补成真正全球级)

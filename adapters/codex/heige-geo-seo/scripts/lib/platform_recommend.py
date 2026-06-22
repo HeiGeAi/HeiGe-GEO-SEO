@@ -233,9 +233,10 @@ def recommend(target_engines, content_type=None, top=None):
 def reverse(platform):
     """反向:这个平台能喂哪些 AI 引擎。"""
     feeds = []
+    q = (platform or "").strip()
     for eng, plats in _ENGINE_PLATFORMS.items():
         for plat, w, src, why in plats:
-            if platform in plat or plat in platform:
+            if q == plat or (len(q) >= 2 and q in plat):
                 feeds.append({"engine": eng, "weight": w, "source": src, "why": why,
                               "region": "海外" if _is_overseas(eng) else "国内"})
     feeds.sort(key=lambda f: f["weight"], reverse=True)

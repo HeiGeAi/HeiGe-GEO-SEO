@@ -21,7 +21,9 @@ _URL_RE = re.compile(r"https?://([^/\s)\]]+)")
 
 
 def _domain(host):
-    host = host.lower().lstrip("www.")
+    host = host.lower()
+    if host.startswith("www."):
+        host = host[4:]
     return host
 
 
