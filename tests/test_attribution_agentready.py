@@ -37,6 +37,30 @@ class TestAttribution(unittest.TestCase):
         self.assertIn("GPTBot", bots)
         self.assertIn("PerplexityBot", bots)
 
+    def test_region_and_purpose_classification(self):
+        log = (
+            '1.1.1.1 - - [x] "GET /a HTTP/1.1" 200 1 "-" "x GPTBot/1.3 y"\n'
+            '1.1.1.2 - - [x] "GET /b HTTP/1.1" 200 1 "-" "x Baiduspider/2.0 y"\n'
+            '1.1.1.3 - - [x] "GET /c HTTP/1.1" 200 1 "-" "x ChatGPT-User/1.0 y"\n'
+        )
+        r = attribution.parse_access_log(log)
+        self.assertEqual(r["by_region"]["overseas"], 2)
+        self.assertEqual(r["by_region"]["cn"], 1)
+        self.assertEqual(r["by_purpose"]["train"], 1)
+        self.assertEqual(r["by_purpose"]["user"], 1)
+        self.assertEqual(r["realtime_read_hits"], 1)
+
+    def test_blindspots_reported(self):
+        r = attribution.parse_access_log("")
+        self.assertTrue(any("Grok" in b for b in r["blindspots"]))
+
+    def test_ga4_regex_has_cn_and_overseas(self):
+        rx = attribution.gen_ga4_regex()
+        self.assertIn("doubao", rx)
+        self.assertIn("grok", rx)
+        self.assertIn("perplexity", rx)
+        self.assertIn("aisearchindex", rx)
+
 
 class TestAgentReadiness(unittest.TestCase):
     def test_no_form_low_score(self):

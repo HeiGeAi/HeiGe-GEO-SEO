@@ -525,7 +525,7 @@ def build_parser():
     re_ = sub.add_parser("recommend", help="平台发布推荐(给目标引擎→推荐发哪)")
     re_.add_argument("--engine", action="append",
                      help="目标引擎(豆包/元宝/deepseek/kimi/文心/通义/chatgpt/perplexity/gemini/claude 或 cn-all/overseas-all),可多次")
-    re_.add_argument("--content-type", choices=["video", "tech", "种草", "消费"],
+    re_.add_argument("--content-type", choices=["video", "tech", "种草", "消费", "b2b", "b2c"],
                      help="内容类型(追加适配平台)")
     re_.add_argument("--reverse", help="反向查:某平台能喂哪些 AI")
     re_.add_argument("--top", type=int, help="只看前 N 个")

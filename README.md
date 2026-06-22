@@ -1,11 +1,11 @@
 # HeiGe-GEO-SEO
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue)
+![Version](https://img.shields.io/badge/version-1.3.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Agents](https://img.shields.io/badge/Agents-Claude%20Code%20·%20Codex%20·%20OpenClaw%20·%20Hermes-blue)
 ![Market](https://img.shields.io/badge/Market-China%20First-red)
 ![Python](https://img.shields.io/badge/Python-stdlib%20only-yellow)
-![Tests](https://img.shields.io/badge/tests-106%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-119%20passing-brightgreen)
 
 > 中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。让你的内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。
 >
@@ -81,7 +81,15 @@ python3 scripts/geo_cli.py recommend --reverse 知乎               # 反向:发
 python3 scripts/geo_cli.py recommend --engine cn-all --top 8      # 国内全引擎
 ```
 
-**知识库增量:** 引擎差异矩阵(05)、AI 可见度度量学(06)、国产引擎信源权重表(新榜 1683.6 万条实证,[来源](https://www.newrank.cn/report/detail/433))+ 平台依附 vs 域名主权。完整升级背景见 [CHANGELOG.md](CHANGELOG.md)。
+**全球场景(v1.3):把海外那半边补齐成全球级。** 海外引擎从大四扩到 11 个(检索地基只有三套:Bing 系 ChatGPT/Copilot/Meta/DDG、Google 系 Gemini、独立索引 Brave→Mistral),平台权重按引擎差异化(Gemini 几乎不引 Reddit、ChatGPT 命脉是 Wikipedia、Perplexity 押 Reddit+G2),attribution 区分中外引擎爬虫并标 Grok 等 UA 盲区。
+
+```bash
+python3 scripts/geo_cli.py recommend --engine chatgpt --engine perplexity --content-type b2b
+python3 scripts/geo_cli.py recommend --engine overseas-all --top 10
+python3 scripts/geo_cli.py attribution --log access.log   # 中外分桶+训练/检索/用户三类
+```
+
+**知识库增量:** 引擎差异矩阵(05)、AI 可见度度量学(06)、海外全球场景(07)、国产引擎信源权重表(新榜 1683.6 万条实证,[来源](https://www.newrank.cn/report/detail/433))+ 平台依附 vs 域名主权。完整升级背景见 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 快速开始
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## v1.3.0 (2026-06-21)
+
+### 全球场景补全(把"中国优先,海外作对照"补成真正全球级)
+
+基于对海外 GEO 场景的 4 路深研(引擎全景 / 平台引用权重 / 爬虫归因 / 发布 SOP,全部带源)。
+
+- **海外引擎从大四扩到 11 个**(`recommend`):加 Copilot、Grok、Meta AI、You.com、Brave、Mistral、DuckDuckGo。核心洞察是检索地基只有三套(Bing 系 ChatGPT/Copilot/Meta/DDG、Google 系 Gemini、独立索引 Brave→Mistral),Copilot/Brave/Mistral 是经典 SEO 可打的蓝海。
+- **海外平台从 6 个扩到 20+ 并按引擎差异化加权**:Gemini 几乎不引 Reddit(0.1%)、ChatGPT 命脉是 Wikipedia、Perplexity 押 Reddit+G2、B2B 押 LinkedIn/G2/Capterra。新增 b2b / b2c 内容类型分流。
+- **attribution 中外双轨升级**:爬虫日志区分国内 vs 海外引擎、分训练/检索/用户触发三类、标 Grok/Bytespider/Copilot-agent 等 UA 盲区;GA4 渠道组正则扩到含全部国内外引擎域名;反向查平台带中外地区标签。
+- **新增知识库 `07-global-scenario.md`**:海外 11 引擎表 + 平台权重矩阵 + 逐平台发布 SOP(Reddit 90/10/养号、Wikipedia notability、YouTube 字幕、LinkedIn 双押、G2 准入门、技术内容)+ B2B/B2C 分流 + 多语言。
+
+### 诚实红线(写进知识库与 recommend 输出)
+
+海外引用每月 40-60% 翻盘、半年 70-90% 换新,所有百分比标方向性;口径分总量% vs Top10 share;单域名极少超总引用 5%;别押单平台,4+ 平台一致覆盖抗波动约 70 倍,82-94% 引用来自 earned media;一级证据(GEO 论文)与厂商数字分级。
+
+测试 106 → 119 全过。
+
 ## v1.2.0 (2026-06-21)
 
 ### 平台发布推荐引擎(`recommend`)

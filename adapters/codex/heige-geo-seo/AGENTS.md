@@ -13,7 +13,9 @@
 - 大模型分类与引用行为判断
 - 中国优先的 AI 抓取逻辑诊断
 - 内容发布渠道矩阵与曝光建议(含新榜信源权重表)
-- 平台发布推荐引擎(给目标引擎推荐发哪几个平台权重最高,基于新榜实证)
+- 平台发布推荐引擎(给目标引擎推荐发哪几个平台权重最高,中国新榜实证+海外引用研究)
+- 全球场景:海外 11 引擎(检索地基三套)+ 20+ 平台权重矩阵 + 逐平台发布 SOP + B2B/B2C 分流 + 多语言
+- 中外双轨爬虫归因(区分国内vs海外引擎,分训练/检索/用户触发,标 Grok 等 UA 盲区)
 - SEO+GEO 网页架构与代码级建议
 - GEO 改写方法(9 方法 + 排名分流 + 域映射 + GEU 护栏)
 - GEO 可被引用度评分(6 维 22 项)
@@ -151,7 +153,18 @@ python3 scripts/geo_cli.py recommend --reverse 知乎               # 反向:发
 python3 scripts/geo_cli.py recommend --engine cn-all --top 8
 ```
 
-**新增知识库:** `knowledge/05-engine-differences.md`(引擎差异矩阵)、`knowledge/06-ai-visibility-measurement.md`(度量学)、`03-publishing-channels.md` 补国产引擎信源权重表(新榜 1683.6 万条实证,来源 newrank.cn/report/detail/433)+ 平台依附 vs 域名主权。
+**全球场景(v1.3):海外 11 引擎(检索地基三套 Bing/Google/独立)+ 20+ 平台权重矩阵 + 中外双轨爬虫归因。**
+
+```bash
+python3 scripts/geo_cli.py recommend --engine chatgpt --engine perplexity --content-type b2b   # B2B SaaS 该发哪
+python3 scripts/geo_cli.py recommend --engine gemini        # Gemini 几乎不引 Reddit,推 YouTube/LinkedIn
+python3 scripts/geo_cli.py recommend --engine overseas-all --top 10
+python3 scripts/geo_cli.py attribution --log access.log     # 中外分桶+训练/检索/用户三类+Grok盲区
+```
+
+注意:海外引用每月 40-60% 翻盘,recommend 输出的海外数字是方向性;Gemini 几乎不引 Reddit、ChatGPT 命脉是 Wikipedia、Perplexity 押 Reddit+G2,按引擎差异化。
+
+**新增知识库:** `knowledge/05-engine-differences.md`(引擎差异矩阵)、`knowledge/06-ai-visibility-measurement.md`(度量学)、`knowledge/07-global-scenario.md`(海外全球场景)、`03-publishing-channels.md` 补国产引擎信源权重表(新榜 1683.6 万条实证,来源 newrank.cn/report/detail/433)+ 平台依附 vs 域名主权。
 
 ---
 

@@ -59,5 +59,58 @@ class TestRecommend(unittest.TestCase):
         self.assertEqual(len(r["recommendations"]), 3)
 
 
+class TestOverseasV13(unittest.TestCase):
+    def test_overseas_all_has_eleven_engines(self):
+        r = pr.recommend(["overseas-all"])
+        self.assertEqual(len(r["target_engines"]), 11)
+
+    def test_chatgpt_top_is_wikipedia(self):
+        r = pr.recommend(["chatgpt"])
+        self.assertEqual(r["recommendations"][0]["platform"], "Wikipedia")
+
+    def test_gemini_does_not_recommend_reddit(self):
+        # Gemini 几乎不引 Reddit(0.1%),不应出现在推荐里
+        r = pr.recommend(["gemini"])
+        plats = [x["platform"] for x in r["recommendations"]]
+        self.assertNotIn("Reddit", plats)
+
+    def test_perplexity_loves_reddit_and_g2(self):
+        r = pr.recommend(["perplexity"])
+        plats = [x["platform"] for x in r["recommendations"]]
+        self.assertIn("Reddit", plats)
+        self.assertIn("G2", plats)
+
+    def test_new_engines_resolve(self):
+        for alias, canon in [("copilot", "copilot"), ("bing", "copilot"),
+                             ("grok", "grok"), ("meta", "metaai"),
+                             ("brave", "brave"), ("lechat", "mistral"),
+                             ("ddg", "duckduckgo")]:
+            r = pr.recommend([alias])
+            self.assertEqual(r["target_engines"], [canon])
+
+    def test_grok_recommends_x(self):
+        r = pr.recommend(["grok"])
+        self.assertEqual(r["recommendations"][0]["platform"], "X/Twitter")
+
+    def test_b2b_boosts_g2_linkedin(self):
+        r = pr.recommend(["chatgpt", "perplexity"], content_type="b2b")
+        top2 = [x["platform"] for x in r["recommendations"][:2]]
+        self.assertIn("LinkedIn", top2)
+        self.assertIn("G2", top2)
+
+    def test_overseas_note_has_volatility_warning(self):
+        r = pr.recommend(["chatgpt"])
+        self.assertIn("翻盘", r["note"])
+
+    def test_cn_note_no_overseas_warning(self):
+        r = pr.recommend(["豆包"])
+        self.assertNotIn("翻盘", r["note"])
+
+    def test_reverse_has_region_tag(self):
+        r = pr.reverse("Reddit")
+        self.assertTrue(all("region" in f for f in r["feeds_engines"]))
+        self.assertTrue(any(f["region"] == "海外" for f in r["feeds_engines"]))
+
+
 if __name__ == "__main__":
     unittest.main()
