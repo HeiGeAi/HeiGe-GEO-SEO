@@ -423,6 +423,57 @@ def _dim_F(doc, jl):
 # --------------------------------------------------------------------------
 # top-level
 # --------------------------------------------------------------------------
+def assess_multimodal(doc, jl):
+    """多模态可被引用度(豆包吃抖音、Gemini 命脉 YouTube,视频靠转录入引用池)。
+    独立报告,不计入 100 分主分,避免破坏既有评分。"""
+    types = jl["types"]
+    imgs = doc.counts.get("img", 0)
+    img_alt = doc.counts.get("img_with_alt", 0)
+    alt_cov = round(img_alt / imgs * 100, 1) if imgs else None
+    has_video_schema = "VideoObject" in types
+    has_image_schema = "ImageObject" in types
+    has_transcript = bool(re.search(r"(字幕|逐字稿|transcript|<track\b)", doc.raw, re.IGNORECASE))
+    tips = []
+    if imgs and (alt_cov or 0) < 80:
+        tips.append("图片 alt 覆盖率 %s%%,补全 alt(AI 靠 alt 理解图)" % alt_cov)
+    if not has_video_schema and has_transcript:
+        tips.append("有转录/字幕但缺 VideoObject schema,补上让视频内容可被结构化抽取")
+    if not has_transcript:
+        tips.append("无转录/字幕文本:视频内容必须有可见 transcript 才进 AI 引用池(无字幕=不可见)")
+    return {
+        "img_count": imgs, "img_alt_coverage": alt_cov,
+        "has_video_schema": has_video_schema, "has_image_schema": has_image_schema,
+        "has_transcript_or_captions": has_transcript,
+        "tips": tips,
+        "note": "多模态是 GEO 引用面(尤其国产豆包/海外 Gemini),独立于文字主分单列。",
+    }
+
+
+def assess_onpage(doc):
+    """传统 on-page SERP 信号(title/meta description),独立报告不计主分。"""
+    title = doc.title or ""
+    tlen = len(title)
+    desc = doc.meta.get("description", "")
+    dlen = len(desc)
+    tips = []
+    if not title:
+        tips.append("缺 <title>")
+    elif not (10 <= tlen <= 60):
+        tips.append("title 长度 %d(建议 10~60 字符,过长 SERP 截断)" % tlen)
+    if not desc:
+        tips.append("缺 meta description(AI 与 SERP 都会用作摘要)")
+    elif dlen > 160:
+        tips.append("meta description 过长 %d(建议 ≤155 字符)" % dlen)
+    canonical = bool(doc.canonical)
+    if not canonical:
+        tips.append("缺 canonical")
+    return {
+        "title_length": tlen, "description_length": dlen,
+        "has_canonical": canonical, "tips": tips,
+        "note": "面向 SERP 蓝链的基本功;与 schema/答案前置互补。",
+    }
+
+
 def score_document(doc, robots_text=None, llms_text=None, llms_full=False,
                    ai_txt=False, market="auto"):
     if market == "auto":
@@ -497,6 +548,8 @@ def score_document(doc, robots_text=None, llms_text=None, llms_full=False,
         "dimensions": dims,
         "vetoes": vetoes,
         "weakest": _weakest(dims),
+        "multimodal": assess_multimodal(doc, jl),
+        "onpage_serp": assess_onpage(doc),
     }
 
 

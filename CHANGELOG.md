@@ -1,5 +1,28 @@
 # Changelog
 
+## v1.5.0 (2026-06-23)
+
+收官版:把历轮 The Agency 专家审查点过的 backlog 一次性补齐,从"诊断+产出+度量"做到"测质量+管风险+全栈覆盖"。
+
+### 引用质量层(从"测覆盖"到"测质量管风险")
+
+- `sov` 加被引 **sentiment**(正/中/负,防把负面提及误报成可见度)、**earned vs owned 引用拆分**(自有刷引用抗波动差)、**多轮 by_turn**(首轮命中 vs 后续留存,turn 管对话演进 run 管抖动)。
+- `factcheck`:品牌错误信息纠正,你提供真相→标 AI 说错的(说你停产/价格错),接实体层修复。
+- `lostprompt`:竞品替换分析,找竞品占位你缺席的 prompt,按引擎聚类,标该夺回哪些。
+- `score` 加 `multimodal`(图 alt 覆盖/视频转录/VideoObject schema)独立报告。
+
+### agentic 完善
+
+- `agentready` 加 **agent-hostile 反模式检测**(CAPTCHA/file 上传/canvas 控件/placeholder 当 label/强制注册墙,今天就让 Operator/Claude/Gemini 等 computer-use agent 任务失败)+ **imperative WebMCP 扫描**(navigator.modelContext/registerTool);declarative 属性名标注成熟度,诚实提示未定稿。
+- schema 加 `potentialAction`(OrderAction/ReserveAction + EntryPoint)、`speakable`、`SoftwareApplication`。
+
+### SEO 深水 + AEO 完善
+
+- `cannibalize`(关键词蚕食:跨页 title/H1/关键词重叠)、`internal-links`(内链/孤儿页审计)、`score` 加 `onpage_serp`(title/meta 长度)、`cwv`(Core Web Vitals 评估,喂 PSI 数值,诚实标 field data 不离线测)、`token`(token 预算近似估算)、`baidu-index-check`(国产搜索收录自查指引)。
+- `gen_llms_full`(llms-full.txt 拼接,喂 RAG/IDE/agent)。
+
+新增 lib:factcheck/lostprompt/cannibalize/internal_links/cwv/token_budget。测试 159 → 184 全过。
+
 ## v1.4.0 (2026-06-22)
 
 补上轮专家审查点名的两处偏科:SEO 弱于 GEO、国内工具化弱于海外。建完又派三位专家(代码/SEO/百度SEO)复审,修掉复审挖出的问题才发布。

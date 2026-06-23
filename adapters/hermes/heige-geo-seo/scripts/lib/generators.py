@@ -475,3 +475,81 @@ def gen_baidu_push(site, token, urls, fast=False):
         "#   重复推送已收录的旧链接会被降配额甚至收回 API 权限,只推新发/更新页;\n"
         "#   返回 JSON 的 success 字段为成功条数。海外侧对应 IndexNow(Bing/Yandex)。\n"
         % (drop_note, url_lines, endpoint, fast_note))
+
+
+# --------------------------------------------------------------------------
+# agentic action + 更多 AEO schema(v1.5)
+# --------------------------------------------------------------------------
+_ACTION_TYPES = {"order": "OrderAction", "reserve": "ReserveAction",
+                 "search": "SearchAction", "subscribe": "SubscribeAction",
+                 "register": "RegisterAction"}
+
+
+def gen_action(action, target_url, name=None, entity_type="WebSite", entity_name=None):
+    """potentialAction + EntryPoint(已落地多年的 schema,WebMCP 没普及前让 agent
+    理解'这页能做什么动作'的现成桥)。action: order/reserve/search/subscribe/register。"""
+    atype = _ACTION_TYPES.get(action, "Action")
+    node = {
+        "@context": "https://schema.org",
+        "@type": entity_type,
+        "potentialAction": {
+            "@type": atype,
+            "target": {"@type": "EntryPoint", "urlTemplate": target_url},
+        },
+    }
+    if entity_name:
+        node["name"] = entity_name
+    if name:
+        node["potentialAction"]["name"] = name
+    if action == "search":
+        node["potentialAction"]["query-input"] = "required name=search_term_string"
+    return node
+
+
+def gen_speakable(css_selectors):
+    """SpeakableSpecification(语音 AEO:Siri/语音助手引用)。"""
+    return {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "speakable": {"@type": "SpeakableSpecification",
+                      "cssSelector": list(css_selectors)},
+    }
+
+
+def gen_software_application(name, category="WebApplication", os="Web",
+                            price=None, currency="CNY", rating=None, rating_count=None):
+    """SoftwareApplication(SaaS/App 类比 Product 更准)。"""
+    node = {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": name,
+        "applicationCategory": category,
+        "operatingSystem": os,
+    }
+    if price is not None:
+        node["offers"] = {"@type": "Offer", "price": str(price), "priceCurrency": currency}
+    if rating is not None:
+        agg = {"@type": "AggregateRating", "ratingValue": str(rating)}
+        if rating_count is not None:
+            agg["ratingCount"] = str(rating_count)
+        node["aggregateRating"] = agg
+    return node
+
+
+def gen_llms_full(site_name, summary, pages):
+    """llms-full.txt:把多页正文拼进单文件,喂 RAG/IDE/agent。
+    pages: list of (title, body) 或 dict(title, body)。这是 llms.txt 唯一被实证
+    持续使用的场景(开发者工具 + agent 用户)的命门。"""
+    out = ["# %s" % site_name, ""]
+    if summary:
+        out.append("> %s" % summary)
+        out.append("")
+    for p in pages:
+        if isinstance(p, dict):
+            title, body = p.get("title", ""), p.get("body", "")
+        else:
+            title, body = p[0], (p[1] if len(p) > 1 else "")
+        out.append("## %s" % title)
+        out.append(body.strip())
+        out.append("")
+    return "\n".join(out).rstrip() + "\n"

@@ -29,7 +29,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib import (htmldoc, scoring, generators, instruction, prompts as promptlib,  # noqa: E402
                  sov as sovlib, diagnose as diaglib, report as reportlib,
                  attribution, agent_readiness, anti_ai,
-                 platform_recommend as recommendlib, intent as intentlib)
+                 platform_recommend as recommendlib, intent as intentlib,
+                 factcheck as fclib, lostprompt as lplib, cannibalize as canlib,
+                 internal_links as illib, cwv as cwvlib, token_budget as tblib)
 
 
 def _read(path):
@@ -181,6 +183,24 @@ def cmd_schema(args):
             return 2
         node = generators.gen_review(args.name, args.rating, args.author,
                                      body=args.description or "")
+    elif t == "action":
+        if not (args.action and args.url):
+            print("action 需要 --action(order/reserve/search/subscribe/register)和 --url", file=sys.stderr)
+            return 2
+        node = generators.gen_action(args.action, args.url, name=args.name,
+                                     entity_name=args.org)
+    elif t == "speakable":
+        if not args.selector:
+            print("speakable 需要 --selector(CSS 选择器,可多次)", file=sys.stderr)
+            return 2
+        node = generators.gen_speakable(args.selector)
+    elif t == "software":
+        if not args.name:
+            print("software 需要 --name", file=sys.stderr)
+            return 2
+        node = generators.gen_software_application(
+            args.name, price=args.price, currency=args.currency,
+            rating=args.rating, rating_count=args.rating_count)
     else:
         print("unknown schema type", file=sys.stderr)
         return 2
@@ -430,6 +450,89 @@ def cmd_hreflang(args):
     return 0
 
 
+def cmd_factcheck(args):
+    records = json.loads(_read(args.input))
+    if isinstance(records, dict):
+        records = records.get("records", [])
+    facts = json.loads(_read(args.facts))
+    aliases = json.loads(_read(args.aliases)) if args.aliases else None
+    result = fclib.check(records, args.brand, facts, aliases=aliases)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    print(fclib.render(result))
+    return 0 if result["conflict_count"] == 0 else 1
+
+
+def cmd_lostprompt(args):
+    records = json.loads(_read(args.input))
+    if isinstance(records, dict):
+        records = records.get("records", [])
+    aliases = json.loads(_read(args.aliases)) if args.aliases else None
+    result = lplib.analyze(records, args.brand, args.competitor or [], aliases=aliases)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        _emit(lplib.render(result), args.out)
+    return 0
+
+
+def cmd_cannibalize(args):
+    pages = [(p, _read(p)) for p in args.inputs]
+    result = canlib.analyze(pages, threshold=args.threshold)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result["conflict_count"] == 0 else 1
+
+
+def cmd_internallinks(args):
+    pages = [(p, _read(p)) for p in args.inputs]
+    result = illib.analyze(pages, base_hosts=args.host or None, home=args.home)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0 if result["orphan_count"] == 0 else 1
+
+
+def cmd_cwv(args):
+    if args.psi:
+        psi = json.loads(_read(args.psi))
+        metrics = psi  # 期望 {lcp,inp,cls}
+    else:
+        metrics = {}
+        if args.lcp is not None:
+            metrics["lcp"] = args.lcp
+        if args.inp is not None:
+            metrics["inp"] = args.inp
+        if args.cls is not None:
+            metrics["cls"] = args.cls
+    result = cwvlib.assess(metrics)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_token(args):
+    text = _read(args.input) if args.input else (args.text or "")
+    if args.budget:
+        result = tblib.check(text, args.budget)
+    else:
+        result = {"approx_tokens": tblib.estimate(text)}
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_baidu_index_check(args):
+    site = args.site
+    text = (
+        "# 百度/国产搜索收录状态自查(工具不联网,给查法)\n"
+        "# 1) 收录量粗查:在百度搜索框输入(整页是否被收录):\n"
+        "site:%s\n"
+        "# 2) 单页是否收录:\n"
+        "site:%s inurl:你的路径\n"
+        "# 3) 权威看后台:百度搜索资源平台 > 数据监控 > 索引量 / 抓取诊断 / 抓取频次\n"
+        "# 4) 神马/搜狗同理用各自 site: 语法;收录是国产 AI 可见的前置(求收录占平台)。\n"
+        % (site, site))
+    _emit(text, args.out)
+    return 0
+
+
 # --------------------------------------------------------------------------
 # parser
 # --------------------------------------------------------------------------
@@ -460,7 +563,8 @@ def build_parser():
     sc.add_argument("--type", required=True,
                     choices=["article", "faqpage", "howto", "product",
                              "organization", "person", "website",
-                             "breadcrumb", "itemlist", "review"])
+                             "breadcrumb", "itemlist", "review",
+                             "action", "speakable", "software"])
     sc.add_argument("--title")
     sc.add_argument("--name")
     sc.add_argument("--description")
@@ -474,6 +578,9 @@ def build_parser():
     sc.add_argument("--job-title", help="person: 职位")
     sc.add_argument("--knows-about", action="append", help="person: 专长,可多次")
     sc.add_argument("--item", action="append", help='breadcrumb/itemlist: "名称::url",可多次')
+    sc.add_argument("--action", choices=["order", "reserve", "search", "subscribe", "register"],
+                    help="action: 动作类型")
+    sc.add_argument("--selector", action="append", help="speakable: CSS 选择器,可多次")
     sc.add_argument("--date-published")
     sc.add_argument("--date-modified")
     sc.add_argument("--qa", action="append", help='faqpage: "问题::答案",可多次')
@@ -630,6 +737,59 @@ def build_parser():
     hf.add_argument("--x-default", help="x-default 兜底 URL")
     hf.add_argument("--out")
     hf.set_defaults(func=cmd_hreflang)
+
+    # factcheck
+    fc = sub.add_parser("factcheck", help="品牌错误信息纠正(吃 AI 回答 + 品牌真相)")
+    fc.add_argument("--input", required=True, help="records JSON")
+    fc.add_argument("--brand", required=True)
+    fc.add_argument("--facts", required=True, help="facts JSON: [{attribute,truth,wrong:[]}]")
+    fc.add_argument("--aliases")
+    fc.add_argument("--json", action="store_true")
+    fc.set_defaults(func=cmd_factcheck)
+
+    # lostprompt
+    lp = sub.add_parser("lostprompt", help="竞品替换分析(找输的 prompt)")
+    lp.add_argument("--input", required=True, help="records JSON")
+    lp.add_argument("--brand", required=True)
+    lp.add_argument("--competitor", action="append")
+    lp.add_argument("--aliases")
+    lp.add_argument("--json", action="store_true")
+    lp.add_argument("--out")
+    lp.set_defaults(func=cmd_lostprompt)
+
+    # cannibalize
+    cn = sub.add_parser("cannibalize", help="关键词蚕食检测(多页)")
+    cn.add_argument("inputs", nargs="+", help="多个 HTML 文件")
+    cn.add_argument("--threshold", type=float, default=0.5, help="关键词重叠阈值")
+    cn.set_defaults(func=cmd_cannibalize)
+
+    # internal-links
+    il = sub.add_parser("internal-links", help="内链/孤儿页审计(多页)")
+    il.add_argument("inputs", nargs="+", help="多个 HTML 文件")
+    il.add_argument("--host", action="append", help="站点域名(判带域名的链接为站内)")
+    il.add_argument("--home", default="/", help="首页 path(不算孤儿)")
+    il.set_defaults(func=cmd_internallinks)
+
+    # cwv
+    cv = sub.add_parser("cwv", help="Core Web Vitals 评估(喂 PSI 数值)")
+    cv.add_argument("--lcp", type=float, help="LCP 秒")
+    cv.add_argument("--inp", type=float, help="INP 毫秒")
+    cv.add_argument("--cls", type=float, help="CLS 数值")
+    cv.add_argument("--psi", help="PageSpeed JSON 文件({lcp,inp,cls})")
+    cv.set_defaults(func=cmd_cwv)
+
+    # token
+    tk = sub.add_parser("token", help="token 预算估算(近似)")
+    tk.add_argument("--input", help="文本文件")
+    tk.add_argument("--text", help="直接传文本")
+    tk.add_argument("--budget", type=int, help="token 预算上限")
+    tk.set_defaults(func=cmd_token)
+
+    # baidu-index-check
+    bic = sub.add_parser("baidu-index-check", help="百度/国产搜索收录状态自查指引")
+    bic.add_argument("--site", required=True)
+    bic.add_argument("--out")
+    bic.set_defaults(func=cmd_baidu_index_check)
 
     return p
 
