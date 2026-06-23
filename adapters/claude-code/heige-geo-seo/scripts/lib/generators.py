@@ -5,6 +5,8 @@ See source/knowledge/02-crawler-logic.md and 04-webpage-architecture.md.
 """
 
 import json
+import re as _re
+from urllib.parse import quote as _quote
 
 
 # --------------------------------------------------------------------------
@@ -44,7 +46,10 @@ def gen_robots(strategy="allow-all", sitemap=None, disallow_paths=None):
     elif strategy == "cn-index":
         lines.append("# 国内 GEO:确保百度/搜狗/必应能收录(国产 AI 的总进水口)")
         lines.append("")
-        block(["Baiduspider", "Sogou web spider", "Bingbot", "Googlebot"], "Allow: /")
+        block(["Baiduspider", "Sogou web spider", "Bingbot", "Googlebot",
+               "YisouSpider", "360Spider", "HaoSpider"], "Allow: /")
+        lines.append("# 神马(YisouSpider,UC/夸克移动)、360(360Spider)一并放行")
+        lines.append("")
         lines.append("# AI 检索类一并放行")
         lines.append("")
         block(_AI_SEARCH_BOTS, "Allow: /")
@@ -419,3 +424,54 @@ def gen_feed_xml(title, link, items, last_build=None):
                    % (t, il, pub))
     out.append("</channel></rss>")
     return "\n".join(out) + "\n"
+
+
+# --------------------------------------------------------------------------
+# 国际化 + 国内收录(v1.4)
+# --------------------------------------------------------------------------
+def gen_hreflang(locales, x_default=None):
+    """hreflang 多语言标注。locales: list of (lang_region, url),如 ('zh-CN','...').
+    每个本地化页应自引 + 列全部 alternates + x-default 兜底。"""
+    lines = []
+    for lang, url in locales:
+        lines.append('<link rel="alternate" hreflang="%s" href="%s" />' % (lang, url))
+    if x_default:
+        lines.append('<link rel="alternate" hreflang="x-default" href="%s" />' % x_default)
+    return "\n".join(lines) + "\n"
+
+
+_URL_OK = _re.compile(r"^https?://[^\s'\"`$;|<>\\]+$")
+
+
+def gen_baidu_push(site, token, urls, fast=False):
+    """百度搜索资源平台主动推送(国内收录第一杠杆,把 7-15 天等爬虫压到当天)。
+    生成可直接跑的 curl + 注意事项。site/token URL 编码,urls 逐行校验,防 shell 注入。
+    site 用备案主域,token 在搜索资源平台后台拿。"""
+    # 只保留合法 http(s) URL,剔除含 shell 元字符/换行/EOF 的行,防注入
+    clean, dropped = [], 0
+    for u in urls:
+        u = (u or "").strip()
+        if u and u != "EOF" and _URL_OK.match(u):
+            clean.append(u)
+        else:
+            dropped += 1
+    endpoint = "http://data.zz.baidu.com/urls?site=%s&token=%s" % (
+        _quote(str(site), safe=""), _quote(str(token), safe=""))
+    # 用 printf 单引号逐行,不用 heredoc,避免 EOF/插值逃逸
+    url_lines = "\n".join("printf '%%s\\n' '%s' >> urls.txt" % u for u in clean)
+    drop_note = ("# 已丢弃 %d 条非法/可疑 URL(只接受干净的 http(s) 链接)\n" % dropped) if dropped else ""
+    fast_note = (
+        "# 快速收录:百度已基本下线快速收录接口(改为'快速抓取'工具),仅移动端页面/白名单站点可用,\n"
+        "#   绝大多数站点请用普通收录;本脚本走的就是普通推送 endpoint。\n" if fast else "")
+    return (
+        "# 百度主动推送(普通收录)\n"
+        "%s"
+        "# 1) 生成 urls.txt(每行一条):\n"
+        "rm -f urls.txt\n%s\n\n"
+        "# 2) 推送(site 须用与推送 URL 同协议的 ICP 备案主域,token 在百度搜索资源平台后台):\n"
+        "curl -H 'Content-Type:text/plain' --data-binary @urls.txt \"%s\"\n\n"
+        "%s"
+        "# 配额坑:普通收录 API 与手动提交共享每日额度(常见 10 万/天,以后台为准);\n"
+        "#   重复推送已收录的旧链接会被降配额甚至收回 API 权限,只推新发/更新页;\n"
+        "#   返回 JSON 的 success 字段为成功条数。海外侧对应 IndexNow(Bing/Yandex)。\n"
+        % (drop_note, url_lines, endpoint, fast_note))

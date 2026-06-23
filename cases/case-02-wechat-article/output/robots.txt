@@ -15,6 +15,17 @@ Allow: /
 User-agent: Googlebot
 Allow: /
 
+User-agent: YisouSpider
+Allow: /
+
+User-agent: 360Spider
+Allow: /
+
+User-agent: HaoSpider
+Allow: /
+
+# 神马(YisouSpider,UC/夸克移动)、360(360Spider)一并放行
+
 # AI 检索类一并放行
 
 User-agent: OAI-SearchBot

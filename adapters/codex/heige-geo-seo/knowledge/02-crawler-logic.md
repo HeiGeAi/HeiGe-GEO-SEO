@@ -181,6 +181,21 @@ Allow: /
 
 ---
 
+## 国产搜索引擎爬虫 UA 清单(v1.4 补,对称海外表)
+
+国内能在日志里识别的搜索/AI 爬虫,放行这些等于打通国产 AI 的索引进水口:
+
+| UA token | 归属 | 喂哪个 AI / 搜索 | robots |
+|---|---|---|---|
+| `Baiduspider` | 百度 | 百度搜索 + 文心 | 遵守 |
+| `Sogou web spider` | 搜狗 | 搜狗 + 腾讯元宝 | 遵守 |
+| `YisouSpider` | 神马(UC/夸克) | 神马移动搜索 + 夸克 + 通义 | **名义遵守,实测多投诉不遵守(同 Bytespider,抓取激进)** |
+| `360Spider` / `HaoSpider` | 360 | 360 搜索 + 360 AI | 遵守 |
+| `Bytespider` | 字节 | 头条搜索 + 豆包 | **名义遵守,实测不遵守** |
+| `PetalBot` | 华为 | 花瓣搜索 + 盘古 | 遵守 |
+
+**配置:cn-index 策略(`gen_robots.py --strategy cn-index`)已放行 Baiduspider/Sogou/神马/360/Bingbot,这是国产 AI 的总进水口,别屏蔽。** 日志分桶用 `attribution --log` 区分国内 vs 海外。
+
 ## 相关知识库
 
 - 这些 AI 各自吃哪个生态 → [[01-llm-landscape]]

@@ -69,6 +69,8 @@ _AI_BOT_UA = {
     "Bytespider": ("train", "cn", "字节/豆包"),
     "PetalBot": ("train", "cn", "华为/盘古"),
     "YisouSpider": ("search", "cn", "神马/夸克"),
+    "360Spider": ("search", "cn", "360搜索"),
+    "HaoSpider": ("search", "cn", "360好搜"),
     "DeepSeekBot": ("train", "cn", "DeepSeek"),
 }
 

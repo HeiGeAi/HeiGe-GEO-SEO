@@ -1,11 +1,11 @@
 # HeiGe-GEO-SEO
 
-![Version](https://img.shields.io/badge/version-1.3.1-blue)
+![Version](https://img.shields.io/badge/version-1.4.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Agents](https://img.shields.io/badge/Agents-Claude%20Code%20·%20Codex%20·%20OpenClaw%20·%20Hermes-blue)
 ![Market](https://img.shields.io/badge/Market-China%20First-red)
 ![Python](https://img.shields.io/badge/Python-stdlib%20only-yellow)
-![Tests](https://img.shields.io/badge/tests-138%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-159%20passing-brightgreen)
 
 > 中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。让你的内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。
 >
@@ -72,6 +72,19 @@ python3 scripts/geo_cli.py batch a.html b.html --html report.html    # 批量审
 python3 scripts/geo_cli.py attribution --url https://x.com           # GA4 渠道组正则 + UTM + 日志解析
 python3 scripts/geo_cli.py agentready --input page.html              # WebMCP 就绪审计
 ```
+
+**v1.4 补 SEO 偏科 + 国内工具化(The Agency 专家组审查后):**
+
+```bash
+python3 scripts/geo_cli.py intent --query "最好的公众号排版工具对比"   # 搜索意图分类→内容类型+schema+战术
+python3 scripts/geo_cli.py brief --topic "公众号排版" --intent "公众号怎么快速排版"
+python3 scripts/geo_cli.py baidu-push --site xsbbai.com --token T --url https://xsbbai.com/a   # 百度主动推送(国内收录第一杠杆)
+python3 scripts/geo_cli.py hreflang --locale "zh-CN::https://x.com/" --locale "en::https://x.com/en/"
+```
+
+SEO 侧补了搜索意图分类链 + 外链/earned media 知识层 + hreflang + D5 出站引用质量;国内侧补了百度主动推送、神马/360 爬虫覆盖、cn 评分修正(国内 llms.txt 不再错罚)、国产爬虫 UA 对称表。
+
+**定位说明(名实对齐):这是 GEO 为主、SEO 聚焦"on-page 可被引用性 + 国内收录 + 国际化"的工具。** 完整 SEO 的关键词研究、外链反查、Core Web Vitals 实测、内链/cannibalization 审计需要外部数据或属下个阶段,当前不覆盖,不当全功能 SEO 套件用。
 
 **平台发布推荐引擎(v1.2,基于新榜 1683.6 万条实证):** 把信源权重表从静态知识变成会推荐的引擎,给目标引擎推荐发哪几个平台权重最高。
 

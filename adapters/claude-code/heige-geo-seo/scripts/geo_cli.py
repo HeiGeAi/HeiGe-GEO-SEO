@@ -29,7 +29,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from lib import (htmldoc, scoring, generators, instruction, prompts as promptlib,  # noqa: E402
                  sov as sovlib, diagnose as diaglib, report as reportlib,
                  attribution, agent_readiness, anti_ai,
-                 platform_recommend as recommendlib)
+                 platform_recommend as recommendlib, intent as intentlib)
 
 
 def _read(path):
@@ -226,15 +226,28 @@ def cmd_rewrite(args):
 
 def cmd_brief(args):
     sections = args.section or []
+    intent_res = None
+    if args.intent or args.topic:
+        intent_res = intentlib.classify(args.intent or args.question or args.topic)
     brief = instruction.gen_geo_brief(
         topic=args.topic, primary_question=args.question or args.topic,
         sections=sections, entities=args.entity or None,
         paa_questions=args.paa or None, target_engine=args.engine,
         lang=args.lang)
+    if intent_res:
+        brief["search_intent"] = {
+            "intent": intent_res["intent"], "confidence": intent_res["confidence"],
+            "content_type": intent_res["content_type"],
+            "recommended_schema": intent_res["recommended_schema"],
+            "tactic": intent_res["geo_seo_tactic"],
+        }
     if args.json:
         print(json.dumps(brief, ensure_ascii=False, indent=2))
     else:
-        _emit(instruction.render_brief_markdown(brief), args.out)
+        md = instruction.render_brief_markdown(brief)
+        if intent_res:
+            md = intentlib.render(intent_res) + "\n\n---\n\n" + md
+        _emit(md, args.out)
     return 0
 
 
@@ -385,6 +398,38 @@ def cmd_recommend(args):
     return 0
 
 
+def cmd_intent(args):
+    result = intentlib.classify(args.query)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+    else:
+        _emit(intentlib.render(result), args.out)
+    return 0
+
+
+def cmd_baidu_push(args):
+    urls = list(args.url or [])
+    if args.url_file:
+        urls += [ln.strip() for ln in _read(args.url_file).splitlines() if ln.strip()]
+    if not urls:
+        print("需要 --url(可多次)或 --url-file", file=sys.stderr)
+        return 2
+    text = generators.gen_baidu_push(args.site, args.token or "你的TOKEN", urls,
+                                     fast=args.fast)
+    _emit(text, args.out)
+    return 0
+
+
+def cmd_hreflang(args):
+    locales = [_split_pair(x) for x in (args.locale or [])]
+    if not locales:
+        print("需要 --locale \"zh-CN::url\",可多次", file=sys.stderr)
+        return 2
+    text = generators.gen_hreflang(locales, x_default=args.x_default)
+    _emit(text, args.out)
+    return 0
+
+
 # --------------------------------------------------------------------------
 # parser
 # --------------------------------------------------------------------------
@@ -472,6 +517,7 @@ def build_parser():
     br.add_argument("--paa", action="append", help="必答问句,可多次")
     br.add_argument("--engine", help="目标引擎")
     br.add_argument("--lang", choices=["zh", "en"], default="zh")
+    br.add_argument("--intent", help="目标查询(自动分类搜索意图,指导内容骨架)")
     br.add_argument("--json", action="store_true")
     br.add_argument("--out")
     br.set_defaults(func=cmd_brief)
@@ -560,6 +606,30 @@ def build_parser():
     re_.add_argument("--json", action="store_true")
     re_.add_argument("--out")
     re_.set_defaults(func=cmd_recommend)
+
+    # intent
+    it = sub.add_parser("intent", help="搜索意图分类(信息/商业/交易/导航)")
+    it.add_argument("--query", required=True, help="查询或标题")
+    it.add_argument("--json", action="store_true")
+    it.add_argument("--out")
+    it.set_defaults(func=cmd_intent)
+
+    # baidu-push
+    bp = sub.add_parser("baidu-push", help="百度主动推送脚本(国内收录第一杠杆)")
+    bp.add_argument("--site", required=True, help="ICP 备案主域")
+    bp.add_argument("--token", help="百度搜索资源平台 token")
+    bp.add_argument("--url", action="append", help="要提交的 URL,可多次")
+    bp.add_argument("--url-file", help="每行一个 URL 的文件")
+    bp.add_argument("--fast", action="store_true", help="快速收录(需权益)")
+    bp.add_argument("--out")
+    bp.set_defaults(func=cmd_baidu_push)
+
+    # hreflang
+    hf = sub.add_parser("hreflang", help="多语言 hreflang 标注")
+    hf.add_argument("--locale", action="append", help='"zh-CN::url",可多次')
+    hf.add_argument("--x-default", help="x-default 兜底 URL")
+    hf.add_argument("--out")
+    hf.set_defaults(func=cmd_hreflang)
 
     return p
 

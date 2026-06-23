@@ -155,6 +155,25 @@ _QA_PATTERNS = re.compile(
 _COPULA = re.compile(r"(是|为|有|包括|指的是|属于|\bis\b|\bare\b|\bhas\b|\bhave\b|\bmeans\b)",
                      re.IGNORECASE)
 _KG_HOSTS = ("wikipedia.org", "wikidata.org", "linkedin.com", "crunchbase.com")
+# 出站权威源(D5 引用质量信号):维基/政府/学术/官方文档/百科
+# "." 开头按后缀匹配,其余按 host 等于或子域匹配,避免钓鱼域 wikipedia.org.evil.com 误判
+_AUTH_DOMAINS = (".gov", ".edu", ".gov.cn", "wikipedia.org", "wikidata.org",
+                 "baike.baidu.com", "nih.gov", "who.int", "arxiv.org",
+                 "doi.org", "scholar.google.com")
+
+
+def _is_auth_link(href):
+    m = re.search(r"https?://([^/?#]+)", (href or "").lower())
+    if not m:
+        return False
+    host = m.group(1)
+    for d in _AUTH_DOMAINS:
+        if d.startswith("."):
+            if host.endswith(d):
+                return True
+        elif host == d or host.endswith("." + d):
+            return True
+    return False
 
 
 def _status(earned, weight):
@@ -197,15 +216,21 @@ def _dim_A(robots, market):
     return {"key": "A", "name": "AI 爬虫准入", "weight": 18, "checks": checks}
 
 
-def _dim_B(robots, llms, llms_full, ai_txt):
+def _dim_B(robots, llms, llms_full, ai_txt, market="global"):
     checks = []
     if llms is not None:
         has_h1 = bool(re.search(r"^#\s+\S", llms, re.MULTILINE))
         has_quote = bool(re.search(r"^>\s+\S", llms, re.MULTILINE))
         has_link = bool(re.search(r"^\s*[-*]\s*\[.+?\]\(.+?\)", llms, re.MULTILINE))
         earned = (4 if has_h1 else 0) + (2 if has_link else 0) + (2 if has_quote else 0)
+        if market == "cn":
+            earned = max(earned, 4)  # 国内"提供" >= "不提供",避免做了反而比没做分低
         note = "缺 H1/链接/摘要会扣分" if earned < 8 else ""
         checks.append(_chk("B1", "llms.txt 存在且结构合格", 8, earned, note))
+    elif market == "cn":
+        # 国内站 llms.txt 影响弱(主流国产 AI 不读),未提供不重罚,避免评分与知识库自相矛盾
+        checks.append(_chk("B1", "llms.txt 存在且结构合格", 8, 4,
+                           "国内 llms.txt 影响弱,未提供不重罚(知识库 04);国内收录看百度推送/被搜索收录"))
     else:
         checks.append(_chk("B1", "llms.txt 存在且结构合格", 8, 0, "未提供 llms.txt"))
     checks.append(_chk("B2", "llms-full.txt / Markdown 端点", 3, 3 if llms_full else 0,
@@ -299,15 +324,19 @@ def _dim_D(doc):
     checks.append(_chk("D4", "信息密度/篇幅(800~1500词最优)", 4, d4,
                        n4 or ("%d 词" % wc)))
 
-    ext = len(doc.external_links())
+    ext_links = doc.external_links()
+    ext = len(ext_links)
+    auth = sum(1 for lk in ext_links if _is_auth_link(lk.get("href", "")))
     if nums >= 3 and ext >= 1:
         d5 = 4
     elif nums >= 3 or ext >= 1:
         d5 = 2
     else:
         d5 = 0
-    checks.append(_chk("D5", "统计数据+外部引用", 4, d5,
-                       "数字 %d 个,外链 %d 个" % (nums, ext)))
+    note = "数字 %d 个,外链 %d 个(权威外链 %d 个)" % (nums, ext, auth)
+    if ext and auth == 0:
+        note += ";出站引用质量低,优先引权威源(维基/官方/政府/学术)"
+    checks.append(_chk("D5", "统计数据+外部引用", 4, d5, note))
     return {"key": "D", "name": "内容可抽取性", "weight": 22, "checks": checks}
 
 
@@ -406,7 +435,7 @@ def score_document(doc, robots_text=None, llms_text=None, llms_full=False,
     if robots is not None:
         dims.append(_dim_A(robots, market))
     if robots is not None or llms_text is not None or llms_full or ai_txt:
-        dims.append(_dim_B(robots, llms_text, llms_full, ai_txt))
+        dims.append(_dim_B(robots, llms_text, llms_full, ai_txt, market))
     dims.append(_dim_C(doc, jl))
     dims.append(_dim_D(doc))
     dims.append(_dim_E(doc))
