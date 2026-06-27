@@ -31,7 +31,8 @@ from lib import (htmldoc, scoring, generators, instruction, prompts as promptlib
                  attribution, agent_readiness, anti_ai,
                  platform_recommend as recommendlib, intent as intentlib,
                  factcheck as fclib, lostprompt as lplib, cannibalize as canlib,
-                 internal_links as illib, cwv as cwvlib, token_budget as tblib)
+                 internal_links as illib, cwv as cwvlib, token_budget as tblib,
+                 content_engineering as celib)
 
 
 def _read(path):
@@ -518,6 +519,16 @@ def cmd_token(args):
     return 0
 
 
+def cmd_cescore(args):
+    doc = htmldoc.from_string(_read(args.input))
+    result = celib.score(doc, market=args.market)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0 if result["score"] >= args.fail_under else 1
+    _emit(celib.render(result), args.out)
+    return 0 if result["score"] >= args.fail_under else 1
+
+
 def cmd_baidu_index_check(args):
     site = args.site
     text = (
@@ -784,6 +795,15 @@ def build_parser():
     tk.add_argument("--text", help="直接传文本")
     tk.add_argument("--budget", type=int, help="token 预算上限")
     tk.set_defaults(func=cmd_token)
+
+    # cescore
+    ce = sub.add_parser("cescore", help="内容工程 11 要素加权评分(被引用拆解,WaytoAGI 方法论)")
+    ce.add_argument("--input", required=True, help="HTML 文件")
+    ce.add_argument("--market", choices=["auto", "cn", "global"], default="auto")
+    ce.add_argument("--json", action="store_true")
+    ce.add_argument("--fail-under", type=int, default=0)
+    ce.add_argument("--out")
+    ce.set_defaults(func=cmd_cescore)
 
     # baidu-index-check
     bic = sub.add_parser("baidu-index-check", help="百度/国产搜索收录状态自查指引")

@@ -1,11 +1,11 @@
 # HeiGe-GEO-SEO
 
-![Version](https://img.shields.io/badge/version-1.5.0-blue)
+![Version](https://img.shields.io/badge/version-1.6.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Agents](https://img.shields.io/badge/Agents-Claude%20Code%20·%20Codex%20·%20OpenClaw%20·%20Hermes-blue)
 ![Market](https://img.shields.io/badge/Market-China%20First-red)
 ![Python](https://img.shields.io/badge/Python-stdlib%20only-yellow)
-![Tests](https://img.shields.io/badge/tests-184%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-203%20passing-brightgreen)
 
 > 中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。让你的内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。
 >
@@ -72,6 +72,18 @@ python3 scripts/geo_cli.py batch a.html b.html --html report.html    # 批量审
 python3 scripts/geo_cli.py attribution --url https://x.com           # GA4 渠道组正则 + UTM + 日志解析
 python3 scripts/geo_cli.py agentready --input page.html              # WebMCP 就绪审计
 ```
+
+**v1.6 内容工程层:把 WaytoAGI《GEO 内容工程》公开课(姚金刚)的核心方法论落进产品。**
+
+```bash
+# 内容工程 11 要素加权评分:回答「这一篇为什么会(不会)被 AI 反复引用」
+python3 scripts/geo_cli.py cescore --input page.html
+```
+
+- 11 要素、9 分层,每个带可计算公式和规则权重。**证据引用层合计 43%**(权威原文引语 16% + 统计数据 14% + 可引用性 13%)是被引用第一杠杆,输出优先暴露这层缺口。
+- 补齐 6 维卡里 D(可抽取性)偏粗的内容质量维度:`score` 看大盘和基础设施,`cescore` 钻被引用要素,两者并用。
+- 新知识库 `08-content-engineering.md`:八层机制(记忆→索引→查询→检索→重排→装配→引用→治理,内容质量打 5-7 层,信源策略打 2-4 层)+ GeoFlow 8 模块 + 系统=目标+要素+关系 + 监测=概率(25 次取均值)。
+- 诚实边界:权重是方向性口径(来自单一研究),语义类要素无 query 时启发式近似,机器评分不替代人工终审,素材不足绝不编造引语/统计/来源。
 
 **v1.5 收官:把历轮专家点过的 backlog 一次性补齐。**
 
