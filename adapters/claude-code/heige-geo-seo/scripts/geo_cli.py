@@ -32,7 +32,8 @@ from lib import (htmldoc, scoring, generators, instruction, prompts as promptlib
                  platform_recommend as recommendlib, intent as intentlib,
                  factcheck as fclib, lostprompt as lplib, cannibalize as canlib,
                  internal_links as illib, cwv as cwvlib, token_budget as tblib,
-                 content_engineering as celib, sourcing as sourcinglib)
+                 content_engineering as celib, sourcing as sourcinglib,
+                 playbook as playbooklib, measure as measurelib)
 
 
 def _read(path):
@@ -519,6 +520,53 @@ def cmd_token(args):
     return 0
 
 
+def cmd_playbook(args):
+    doc = htmldoc.from_string(_read(args.input))
+    queries = list(args.query or [])
+    if args.query_file:
+        queries += [ln.strip() for ln in _read(args.query_file).splitlines() if ln.strip()]
+    pb = playbooklib.generate(
+        doc, brand=args.brand, category=args.category,
+        engines=args.engine or None, roots=args.root or None,
+        content_type=args.content_type, queries=queries or None, market=args.market,
+        robots_text=_read(args.robots) if args.robots else None,
+        llms_text=_read(args.llms) if args.llms else None,
+        competitors=args.competitor or None)
+    if args.json:
+        print(json.dumps(pb, ensure_ascii=False, indent=2))
+        return 0
+    _emit(playbooklib.render_markdown(pb), args.out)
+    return 0
+
+
+def cmd_measure(args):
+    if args.kit:
+        rows = promptlib.generate(args.brand or "品牌", args.category or "品类", limit=20) \
+            if (args.brand and args.category) else []
+        kit = measurelib.collection_kit(args.brand, args.engine or [], rows,
+                                        competitors=args.competitor or None)
+        if args.json:
+            print(json.dumps(kit, ensure_ascii=False, indent=2))
+        else:
+            _emit(measurelib.render_kit(kit), args.out)
+        return 0
+    if not args.input:
+        print("measure 非 --kit 模式需要 --input records.json(或加 --kit 出采集工具包)", file=sys.stderr)
+        return 2
+    records = json.loads(_read(args.input))
+    if isinstance(records, dict):
+        records = records.get("records", [])
+    facts = json.loads(_read(args.facts)) if args.facts else None
+    aliases = json.loads(_read(args.aliases)) if args.aliases else None
+    m = measurelib.measure_all(records, args.brand, competitors=args.competitor or None,
+                               facts=facts, aliases=aliases, brand_domain=args.brand_domain)
+    if args.json:
+        print(json.dumps(m, ensure_ascii=False, indent=2))
+    else:
+        _emit(measurelib.render_measure(m), args.out)
+    return 0
+
+
 def cmd_sourcing(args):
     p = sourcinglib.plan(
         category=args.category, roots=args.root or None,
@@ -818,6 +866,39 @@ def build_parser():
     tk.add_argument("--text", help="直接传文本")
     tk.add_argument("--budget", type=int, help="token 预算上限")
     tk.set_defaults(func=cmd_token)
+
+    # playbook
+    pb = sub.add_parser("playbook", help="★旗舰:一键出完整 GEO 作战手册(八层瓶颈定位+诊断+信源+改写+监测)")
+    pb.add_argument("--input", required=True, help="HTML 文件")
+    pb.add_argument("--brand", help="品牌名")
+    pb.add_argument("--category", help="品类/业务")
+    pb.add_argument("--engine", action="append", help="目标引擎,可多次")
+    pb.add_argument("--root", action="append", help="词根,可多次")
+    pb.add_argument("--content-type", choices=["video", "tech", "种草", "消费", "b2b", "b2c"])
+    pb.add_argument("--query", action="append", help="目标问句,可多次")
+    pb.add_argument("--query-file", help="每行一个目标问句")
+    pb.add_argument("--competitor", action="append", help="竞品,可多次")
+    pb.add_argument("--robots", help="robots.txt 文件")
+    pb.add_argument("--llms", help="llms.txt 文件")
+    pb.add_argument("--market", choices=["auto", "cn", "global"], default="auto")
+    pb.add_argument("--json", action="store_true")
+    pb.add_argument("--out")
+    pb.set_defaults(func=cmd_playbook)
+
+    # measure
+    me = sub.add_parser("measure", help="监测采集闭环(--kit 出采集工具包;喂 records 一键 sov+lostprompt+factcheck)")
+    me.add_argument("--kit", action="store_true", help="出采集工具包(协议+prompt集+records模板)")
+    me.add_argument("--input", help="records JSON(measure 模式)")
+    me.add_argument("--brand", help="品牌名")
+    me.add_argument("--category", help="品类(--kit 时生成 prompt 集用)")
+    me.add_argument("--engine", action="append", help="目标引擎,可多次")
+    me.add_argument("--competitor", action="append", help="竞品,可多次")
+    me.add_argument("--facts", help="facts JSON(factcheck 用)")
+    me.add_argument("--aliases", help="别名 JSON")
+    me.add_argument("--brand-domain")
+    me.add_argument("--json", action="store_true")
+    me.add_argument("--out")
+    me.set_defaults(func=cmd_measure)
 
     # sourcing
     so = sub.add_parser("sourcing", help="信源策略规划(八层2-4:词根→问句矩阵+信源偏好诊断+投放SOP+诊断闭环)")

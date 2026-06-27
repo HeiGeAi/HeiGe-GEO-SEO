@@ -1,11 +1,11 @@
 # HeiGe-GEO-SEO
 
-![Version](https://img.shields.io/badge/version-1.7.0-blue)
+![Version](https://img.shields.io/badge/version-1.8.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Agents](https://img.shields.io/badge/Agents-Claude%20Code%20·%20Codex%20·%20OpenClaw%20·%20Hermes-blue)
 ![Market](https://img.shields.io/badge/Market-China%20First-red)
 ![Python](https://img.shields.io/badge/Python-stdlib%20only-yellow)
-![Tests](https://img.shields.io/badge/tests-226%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-246%20passing-brightgreen)
 
 > 中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。让你的内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。
 >
@@ -72,6 +72,20 @@ python3 scripts/geo_cli.py batch a.html b.html --html report.html    # 批量审
 python3 scripts/geo_cli.py attribution --url https://x.com           # GA4 渠道组正则 + UTM + 日志解析
 python3 scripts/geo_cli.py agentready --input page.html              # WebMCP 就绪审计
 ```
+
+**v1.8 旗舰 `playbook`:一条命令出完整 GEO 作战手册。从工具箱收口成产品。你不用学 29 个命令,先跑这一条。**
+
+```bash
+# 一键作战手册:八层瓶颈定位 + 诊断 + 信源策略 + 逐段改写指引 + 监测采集 + 跨层 ROI 行动清单
+python3 scripts/geo_cli.py playbook --input page.html --brand 你的品牌 --category 品类 \
+  --engine 豆包 --engine 元宝 --query "品类哪个好" --competitor 竞品
+# 监测采集闭环:出采样工具包,采集回 AI 回答喂回一键 sov+lostprompt+factcheck
+python3 scripts/geo_cli.py measure --kit --brand 你的品牌 --category 品类 --engine 豆包
+python3 scripts/geo_cli.py measure --input records.json --brand 你的品牌 --competitor 竞品
+```
+
+- **八层瓶颈定位是产品的脑子**：综合 score + cescore + diagnose，先判定你卡在八层哪一层（内容质量层 / 索引层 / 信源策略层）、第一动作做什么，再给跨层按 ROI 排序的统一行动清单。
+- **监测=概率闭环**：`measure` 给采样协议（每问句每平台 5 次、约 5 平台共 25 次取均值=被推荐概率），宿主 agent 或人工采集 AI 回答喂回，看占位/声量份额/被竞品夺走/错误信息。度量离线、绝不编造 AI 回答。
 
 **v1.7 信源策略层:补齐会议方法论的另一半(八层机制 2-4 索引/查询/检索)。v1.6 做内容质量,v1.7 做信源策略,两条腿凑齐才是完整 GEO。**
 

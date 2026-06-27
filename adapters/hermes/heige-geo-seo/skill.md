@@ -178,6 +178,18 @@ python3 scripts/geo_cli.py cescore --input page.html --annotate                 
 
 八层→症状→工具路由:索引没收录用 `sourcing`/`baidu-push`,查询没匹配用 `sourcing`/`prompts`,检索没召回用 `sourcing`/`recommend`,内容没被选中用 `cescore`/`score`,看反馈用 `sov`/`lostprompt`。`sourcing`(信源策略 2-4 层)和 `cescore`(内容质量 5-7 层)是两条腿,缺一条 GEO 不完整。信源策略红线:先诊断目标平台真实信源偏好再投放,别凭表盲发,别押单平台。
 
+**v1.8 旗舰 `playbook`:正门,一条命令出完整 GEO 作战手册(不用学 29 个散命令)。**
+
+```bash
+# 一键作战手册:八层瓶颈定位(先打哪条腿)+ 诊断 + 信源策略 + 逐段改写指引 + 监测采集 + 跨层ROI行动清单
+python3 scripts/geo_cli.py playbook --input page.html --brand 你的品牌 --category 品类 --engine 豆包 --engine 元宝 --query "品类哪个好" --competitor 竞品
+# 监测采集闭环(八层第8层治理/反馈)
+python3 scripts/geo_cli.py measure --kit --brand 你的品牌 --category 品类 --engine 豆包   # 出采样协议+prompt集+records模板
+python3 scripts/geo_cli.py measure --input records.json --brand 你的品牌 --competitor 竞品   # 喂采集回的回答→一键 sov+lostprompt+factcheck
+```
+
+**用户该跑的第一条命令是 `playbook`。** 它综合 score+cescore+diagnose 先判定你卡在八层哪一层(内容质量层 vs 索引层 vs 信源策略层)、第一动作做什么,再给跨层按 ROI 排序的统一行动清单。监测=概率:`measure --kit` 给采样协议(每问句每平台 5 次、约 5 平台共 25 次取均值=被推荐概率),宿主 agent 或人工去目标引擎采集 AI 回答,粘进 records.json 喂回 `measure` 闭环。度量离线、绝不编造 AI 回答。
+
 **新增知识库:** `knowledge/05-engine-differences.md`(引擎差异矩阵)、`knowledge/06-ai-visibility-measurement.md`(度量学,含引用质量层)、`knowledge/07-global-scenario.md`(海外全球场景)、`03-publishing-channels.md` 补国产引擎信源权重表(新榜 1683.6 万条实证,来源 newrank.cn/report/detail/433)+ 平台依附 vs 域名主权。
 
 ---
