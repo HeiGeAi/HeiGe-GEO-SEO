@@ -1,7 +1,7 @@
 {
   "name": "heige-geo-seo",
   "displayName": "HeiGe-GEO-SEO",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "license": "MIT",
   "description_zh": "中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。诊断 → 产出 → 度量全链路。让内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。",
   "description_en": "China-first Generative Engine Optimization (GEO) + SEO system: diagnose, produce, measure. Make your content get cited by Doubao, Qwen, DeepSeek, ERNIE, Tencent Yuanbao, ChatGPT, Perplexity, Claude and Gemini.",
@@ -22,8 +22,9 @@
   },
   "capabilities": [
     "大模型分类与引用行为判断",
-    "内容工程 11 要素加权评分(cescore,WaytoAGI 方法论+爬1万条研究权重,逐要素拆解被引用、证据引用层43%为第一杠杆)",
-    "八层机制内容运营框架(记忆→索引→查询→检索→重排→装配→引用→治理,理清内容质量层 vs 信源策略层)",
+    "内容工程 11 要素加权评分(cescore,WaytoAGI 方法论+爬1万条研究权重,逐要素拆解被引用、证据引用层43%为第一杠杆;支持 --query 真需求匹配 + --annotate 段落级要素标注)",
+    "信源策略层(sourcing,八层2-4:词根→问句矩阵+引擎信源偏好诊断+P0/P1/P2分层投放SOP+监测=概率诊断闭环,复用新榜实证权重表)",
+    "八层机制内容运营框架(记忆→索引→查询→检索→重排→装配→引用→治理,症状→工具路由:先定位卡在哪层再修,内容质量层 cescore vs 信源策略层 sourcing 两条腿)",
     "中国优先的 AI 抓取逻辑诊断",
     "内容发布渠道矩阵与曝光建议(含新榜信源权重表)",
     "平台发布推荐引擎(给目标引擎推荐发哪几个平台权重最高,中国新榜实证+海外引用研究)",
@@ -78,7 +79,7 @@
                  "robots", "schema", "llms", "files", "attribution",
                  "baidu-push", "hreflang", "factcheck", "lostprompt",
                  "cannibalize", "internal-links", "cwv", "token", "baidu-index-check",
-                 "cescore"],
+                 "cescore", "sourcing"],
     "runtime": "python3",
     "dependencies": "stdlib-only"
   },
@@ -89,7 +90,8 @@
     "按搜索排名档位决定改写激进或收敛,按目标引擎差异化",
     "引语/统计/引用只用真实素材,永不编造,Keyword Stuffing 禁用",
     "内容工程=把影响 AI 结果的特征要素以文字有效组合;证据引用层(权威引语+统计数据+可引用性,合计43%)是被引用第一杠杆",
-    "内容质量打第5-7层(重排/装配/引用),信源策略打第2-4层(索引/查询/检索),两层分开优化",
+    "内容质量打第5-7层(重排/装配/引用)用 cescore,信源策略打第2-4层(索引/查询/检索)用 sourcing,先定位卡在哪层再修",
+    "信源策略:先诊断目标平台真实信源偏好再投放,别凭权重表盲发,别押单平台,国内求收录占平台、海外配 robots",
     "度量学离线,采集寄生宿主 agent,不做实时联网监控",
     "两个人工 checkpoint(专家洞察、质量门 BLOCK)不可绕过"
   ]

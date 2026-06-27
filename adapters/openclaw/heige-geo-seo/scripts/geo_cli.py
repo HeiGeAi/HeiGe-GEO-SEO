@@ -32,7 +32,7 @@ from lib import (htmldoc, scoring, generators, instruction, prompts as promptlib
                  platform_recommend as recommendlib, intent as intentlib,
                  factcheck as fclib, lostprompt as lplib, cannibalize as canlib,
                  internal_links as illib, cwv as cwvlib, token_budget as tblib,
-                 content_engineering as celib)
+                 content_engineering as celib, sourcing as sourcinglib)
 
 
 def _read(path):
@@ -519,9 +519,32 @@ def cmd_token(args):
     return 0
 
 
+def cmd_sourcing(args):
+    p = sourcinglib.plan(
+        category=args.category, roots=args.root or None,
+        engines=args.engine or None, content_type=args.content_type,
+        market=args.market)
+    if args.json:
+        print(json.dumps(p, ensure_ascii=False, indent=2))
+        return 0
+    _emit(sourcinglib.render_markdown(p), args.out)
+    return 0
+
+
 def cmd_cescore(args):
     doc = htmldoc.from_string(_read(args.input))
-    result = celib.score(doc, market=args.market)
+    queries = list(args.query or [])
+    if args.query_file:
+        queries += [ln.strip() for ln in _read(args.query_file).splitlines() if ln.strip()]
+    queries = queries or None
+    if args.annotate:
+        ann = celib.annotate(doc, queries=queries)
+        if args.json:
+            print(json.dumps(ann, ensure_ascii=False, indent=2))
+        else:
+            _emit(celib.render_annotation(ann), args.out)
+        return 0
+    result = celib.score(doc, market=args.market, queries=queries)
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result["score"] >= args.fail_under else 1
@@ -796,10 +819,25 @@ def build_parser():
     tk.add_argument("--budget", type=int, help="token 预算上限")
     tk.set_defaults(func=cmd_token)
 
+    # sourcing
+    so = sub.add_parser("sourcing", help="信源策略规划(八层2-4:词根→问句矩阵+信源偏好诊断+投放SOP+诊断闭环)")
+    so.add_argument("--category", help="品类/业务")
+    so.add_argument("--root", action="append", help="词根,可多次")
+    so.add_argument("--engine", action="append",
+                    help="目标引擎(豆包/元宝/deepseek/.../cn-all/overseas-all),可多次")
+    so.add_argument("--content-type", choices=["video", "tech", "种草", "消费", "b2b", "b2c"])
+    so.add_argument("--market", choices=["auto", "cn", "global"], default="auto")
+    so.add_argument("--json", action="store_true")
+    so.add_argument("--out")
+    so.set_defaults(func=cmd_sourcing)
+
     # cescore
     ce = sub.add_parser("cescore", help="内容工程 11 要素加权评分(被引用拆解,WaytoAGI 方法论)")
     ce.add_argument("--input", required=True, help="HTML 文件")
     ce.add_argument("--market", choices=["auto", "cn", "global"], default="auto")
+    ce.add_argument("--query", action="append", help="目标问句(真需求匹配,可多次)")
+    ce.add_argument("--query-file", help="每行一个目标问句的文件")
+    ce.add_argument("--annotate", action="store_true", help="段落级要素标注(逐段改写指引)")
     ce.add_argument("--json", action="store_true")
     ce.add_argument("--fail-under", type=int, default=0)
     ce.add_argument("--out")

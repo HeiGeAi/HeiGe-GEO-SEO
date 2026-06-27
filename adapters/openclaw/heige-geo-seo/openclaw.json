@@ -1,7 +1,7 @@
 {
   "name": "heige-geo-seo",
   "displayName": "HeiGe-GEO-SEO",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "entry": "SKILL.md",
   "triggers": {
     "zh": [
@@ -76,7 +76,8 @@
       "cwv",
       "token",
       "baidu-index-check",
-      "cescore"
+      "cescore",
+      "sourcing"
     ],
     "runtime": "python3",
     "dependencies": "stdlib-only"

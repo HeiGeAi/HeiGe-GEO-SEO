@@ -164,7 +164,8 @@ class _DocParser(HTMLParser):
             self._cur_link_text.append(data)
         if self._in_time:
             self._time_parts.append(data)
-        if self._skip_depth == 0:
+        # title 文本单独进 doc.title,不混入正文 text(否则会漏进首段、污染段落计数和要素标注)
+        if self._skip_depth == 0 and not self._in_title:
             self.text_parts.append(data)
 
 

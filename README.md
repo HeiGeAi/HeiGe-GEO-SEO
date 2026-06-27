@@ -1,11 +1,11 @@
 # HeiGe-GEO-SEO
 
-![Version](https://img.shields.io/badge/version-1.6.0-blue)
+![Version](https://img.shields.io/badge/version-1.7.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Agents](https://img.shields.io/badge/Agents-Claude%20Code%20·%20Codex%20·%20OpenClaw%20·%20Hermes-blue)
 ![Market](https://img.shields.io/badge/Market-China%20First-red)
 ![Python](https://img.shields.io/badge/Python-stdlib%20only-yellow)
-![Tests](https://img.shields.io/badge/tests-203%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-226%20passing-brightgreen)
 
 > 中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。让你的内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。
 >
@@ -72,6 +72,19 @@ python3 scripts/geo_cli.py batch a.html b.html --html report.html    # 批量审
 python3 scripts/geo_cli.py attribution --url https://x.com           # GA4 渠道组正则 + UTM + 日志解析
 python3 scripts/geo_cli.py agentready --input page.html              # WebMCP 就绪审计
 ```
+
+**v1.7 信源策略层:补齐会议方法论的另一半(八层机制 2-4 索引/查询/检索)。v1.6 做内容质量,v1.7 做信源策略,两条腿凑齐才是完整 GEO。**
+
+```bash
+# 信源策略规划:词根→问句矩阵 + 引擎信源偏好诊断 + P0/P1/P2 分层投放 + 诊断闭环
+python3 scripts/geo_cli.py sourcing --category 公众号排版工具 --root 公众号排版 --engine 豆包 --engine 元宝
+# cescore 闭环:--query 真需求匹配(语义去低置信)、--annotate 段落级要素标注
+python3 scripts/geo_cli.py cescore --input page.html --query "公众号排版工具哪个好"
+python3 scripts/geo_cli.py cescore --input page.html --annotate
+```
+
+- **八层 → 症状 → 工具路由**:一个问句没被引用,先判断卡在哪层(索引没收录 / 查询没匹配 / 检索没召回 / 内容没被选中 / 想看反馈),再用对应工具修,别上来就改内容或盲发。
+- `sourcing`(信源策略,2-4 层)和 `cescore`(内容质量,5-7 层)是两条腿,缺一条 GEO 都不完整。
 
 **v1.6 内容工程层:把 WaytoAGI《GEO 内容工程》公开课(姚金刚)的核心方法论落进产品。**
 

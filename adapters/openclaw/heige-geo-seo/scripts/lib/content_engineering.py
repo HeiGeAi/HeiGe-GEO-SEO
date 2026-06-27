@@ -75,7 +75,35 @@ def _real_number_count(doc):
     return len(_NUM.findall(_strip_dates(doc.text)))
 
 
-def _score_elements(doc):
+def _query_grams(queries):
+    """把目标问句拆成 CJK 2-gram + 英文词,作需求匹配的检索单元。"""
+    grams = set()
+    for q in queries or []:
+        for run in re.findall(r"[一-鿿]{2,}", q):
+            for i in range(len(run) - 1):
+                grams.add(run[i:i + 2])
+        for w in re.findall(r"[A-Za-z][A-Za-z0-9]+", q):
+            grams.add(w.lower())
+    return grams
+
+
+def _query_coverage(doc_text, queries):
+    """需求匹配:目标问句的检索单元在内容里的平均覆盖率(0-1)。无 query 返回 None。"""
+    low = doc_text.lower()
+    total = 0
+    acc = 0.0
+    for q in queries or []:
+        grams = _query_grams([q])
+        if not grams:
+            continue
+        # 英文 gram 已小写,对小写正文匹配;CJK gram 对原文匹配(CJK 无大小写)
+        hit = sum(1 for g in grams if g in (low if g.isascii() else doc_text))
+        acc += hit / len(grams)
+        total += 1
+    return (acc / total) if total else None
+
+
+def _score_elements(doc, queries=None):
     text = doc.text
     sents = doc.sentences()
     n_sent = max(1, len(sents))
@@ -125,12 +153,17 @@ def _score_elements(doc):
     balance = (1.0 - (max(plens) - min(plens)) / max(plens)) if (plens and max(plens)) else 0.0
     s["fluency"] = _clamp(sent_ok * 0.6 + _clamp(balance) * 0.4)
 
-    # 语义密度/需求匹配:实体覆盖 + 问句覆盖(低置信,无 query 时启发式近似)
+    # 语义密度/需求匹配:有目标 query 时按真实需求覆盖率(高置信),无 query 时启发式近似(低置信)
     en_ent = [w for w in re.findall(r"[A-Z][A-Za-z0-9]{1,}", text) if w.upper() not in _EN_STOP]
     cn_ent = re.findall(r"[一-鿿]{2,6}(?=(?:是|提供|支持|可以|可用于|采用|属于))", text)
     entities = len(en_ent) + len(cn_ent)
-    q_cover = len(_FAQ.findall(text))
-    s["semantic"] = _clamp(min(1.0, entities / max(10, wc / 50)) * 0.5 + min(1.0, q_cover / 3) * 0.5)
+    ent_density = min(1.0, entities / max(10, wc / 50))
+    qcov = _query_coverage(text, queries)
+    if qcov is not None:
+        # 真需求匹配为主(0.7),实体密度为辅(0.3)
+        s["semantic"] = _clamp(qcov * 0.7 + ent_density * 0.3)
+    else:
+        s["semantic"] = _clamp(ent_density * 0.5 + min(1.0, len(_FAQ.findall(text)) / 3) * 0.5)
 
     # 权威信号:作者/机构资质 + 限制说明
     auth = len(_AUTH_SIGNAL.findall(text))
@@ -157,27 +190,36 @@ def _score_elements(doc):
     return s
 
 
-def score(doc, market="auto"):
-    """按 11 要素加权模型给单篇内容打分。展示总分按 98 归一化到 0-100;逐要素拆解。"""
-    el = _score_elements(doc)
+def score(doc, market="auto", queries=None):
+    """按 11 要素加权模型给单篇内容打分。展示总分按 98 归一化到 0-100;逐要素拆解。
+
+    queries:目标问句列表。给了就把语义密度要素按真实需求覆盖率算(高置信),没给按启发式近似(低置信)。
+    """
+    # 一次算出需求覆盖率,置信度与计算路径都以"覆盖率是否真算出来了"为准
+    # (退化 query 如 "??"/"123"/单字 切不出检索单元,qcov 为 None,语义按低置信启发式)
+    qcov = _query_coverage(doc.text, queries)
+    has_query = qcov is not None
+    el = _score_elements(doc, queries=queries)
     rows = []
     raw_total = 0.0
     for key, layer, name, weight, formula in _ELEMENTS:
         v = el.get(key, 0.0)
         contrib = v * weight
         raw_total += contrib
+        # 语义要素有真实需求覆盖率时高置信,否则低置信
+        low_conf = (key in _LOW_CONFIDENCE) and not (key == "semantic" and has_query)
         rows.append({
             "key": key, "layer": layer, "element": name, "weight": weight,
             "score_0_1": round(v, 2), "weighted": round(contrib, 2),
             "formula": formula,
-            "low_confidence": key in _LOW_CONFIDENCE,
+            "low_confidence": low_conf,
         })
     # 归一化到 0-100(规则权重和为 98)
     total = round(raw_total / _RAW_TOTAL * 100, 1)
     evidence_raw = round(sum(r["weighted"] for r in rows if r["layer"] == "证据引用层"), 1)
-    # "最该先补":排除低置信要素,按性价比(加权/权重)升序
+    # "最该先补":排除低置信要素,按加权欠分(剩余空间×权重)降序,让高权重证据层缺口排前
     rankable = [r for r in rows if not r["low_confidence"]]
-    weakest = sorted(rankable, key=lambda r: r["weighted"] / max(1, r["weight"]))[:3]
+    weakest = sorted(rankable, key=lambda r: -((1 - r["score_0_1"]) * r["weight"]))[:3]
     if total >= 80:
         grade = "绩优"
     elif total >= 60:
@@ -192,6 +234,8 @@ def score(doc, market="auto"):
         "score": total,
         "score_scale": "0-100(规则权重和 98,已归一化)",
         "grade": grade,
+        "query_coverage": round(qcov, 2) if qcov is not None else None,
+        "queries": list(queries) if has_query else None,
         "evidence_layer_raw": evidence_raw,
         "evidence_layer_max_raw": 43,
         "evidence_layer_note": "证据引用层(权威引语+统计数据+可引用性)占规则权重 43/98≈44%,是被引用第一杠杆",
@@ -206,11 +250,82 @@ def score(doc, market="auto"):
     }
 
 
+def annotate(doc, queries=None):
+    """段落级要素标注(会议的段落拆解技法):每段承载哪些要素 + 最该补的高价值要素。
+
+    好的 GEO 内容每段往往同时承载 1-3 个要素。本函数逐段标出已承载的要素,
+    并指出该段缺的、价值最高的证据引用层要素,给逐段改写指引。
+    """
+    paras = [p for p in doc.text.split("\n") if p.strip()]
+    heading_texts = set(t for _, t in doc.headings)
+    rows = []
+    for i, p in enumerate(paras):
+        present = []
+        if _QUOTE_MARK.search(p):
+            present.append("权威原文引语")
+        if _NUM.search(_strip_dates(p)):
+            present.append("统计数据")
+        if _STRONG_SRC.search(p) or "http" in p.lower():
+            present.append("可引用性")
+        if p in heading_texts:
+            present.append("结构规范性")
+        if _FAQ.search(p):
+            present.append("FAQ/需求匹配")
+        if _AUTH_SIGNAL.search(p):
+            present.append("权威信号")
+        if re.search(r"(是指|指的是|定义为|是一种)", p):
+            present.append("专业术语")
+        # 缺的高价值要素(证据引用层优先)
+        tips = []
+        if "统计数据" not in present:
+            tips.append("补一个真实可验证的数字 + 数据口径")
+        if "权威原文引语" not in present and "可引用性" not in present:
+            tips.append("补一句可摘录的权威原文引用 + 出处/外链")
+        rows.append({
+            "index": i,
+            "preview": p[:60] + ("…" if len(p) > 60 else ""),
+            "elements_present": present,
+            "is_heading": p in heading_texts,
+            "tip": ";".join(tips) if tips else "证据要素较全,保持",
+        })
+    covered = set()
+    for r in rows:
+        covered.update(r["elements_present"])
+    qcov = _query_coverage(doc.text, queries) if queries else None
+    return {
+        "paragraph_count": len(rows),
+        "paragraphs": rows,
+        "elements_covered_doc_wide": sorted(covered),
+        "query_coverage": round(qcov, 2) if qcov is not None else None,
+        "note": "好的 GEO 内容每段同时承载 1-3 个要素。证据引用层(引语/统计/出处)最该往每个核心段落里塞,"
+                "但只塞真实素材,绝不编造。",
+    }
+
+
+def render_annotation(ann):
+    out = ["# 段落级要素标注", ""]
+    if ann["query_coverage"] is not None:
+        out.append("需求覆盖率: %s" % ann["query_coverage"])
+    out.append("全文已覆盖要素: %s" % "、".join(ann["elements_covered_doc_wide"]))
+    out.append("")
+    for r in ann["paragraphs"]:
+        tag = "【标题】" if r["is_heading"] else ""
+        els = "、".join(r["elements_present"]) or "无要素"
+        out.append("**段 %d** %s%s" % (r["index"], tag, r["preview"]))
+        out.append("- 承载:%s" % els)
+        out.append("- 建议:%s" % r["tip"])
+    out.append("")
+    out.append("> " + ann["note"])
+    return "\n".join(out)
+
+
 def render(result):
     out = ["# 内容工程 11 要素加权评分", ""]
     out.append("总分: **%s/100**(%s) | 证据引用层: %s/%s(规则权重 43/98)" % (
         result["score"], result["grade"], result["evidence_layer_raw"],
         result["evidence_layer_max_raw"]))
+    if result.get("query_coverage") is not None:
+        out.append("需求覆盖率(对目标问句): **%s**" % result["query_coverage"])
     out.append("> 来源: " + result["source"])
     out.append("")
     out.append("| 层 | 要素 | 权重 | 得分(0-1) | 加权 | 备注 |")
