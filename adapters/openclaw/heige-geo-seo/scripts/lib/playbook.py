@@ -11,6 +11,8 @@
 编排已有 lib,不重造轮子。纯标准库,确定性。
 """
 
+import html as _html
+
 from . import scoring
 from . import content_engineering as ce
 from . import diagnose as diaglib
@@ -197,3 +199,229 @@ def render_markdown(pb):
     o.append("")
     o.append("> " + pb["note"])
     return "\n".join(o)
+
+
+def compare(pages, brand=None, queries=None, market="auto"):
+    """对标作战:你的页 vs 竞品页,逐维逐要素比强弱。
+
+    pages:[(label, doc), ...],第一个是你,其余是竞品。每页打 6 维 + 内容工程 11 要素,
+    输出排名 + 你落后的要素(差距点)+ 一句话裁决。
+    """
+    rows = []
+    for label, doc in pages:
+        sc = scoring.score_document(doc, market=market)
+        ce_res = ce.score(doc, market=sc["market"], queries=queries)
+        rows.append({
+            "label": label,
+            "score_6dim": sc["score"],
+            "content_score": ce_res["score"],
+            "evidence_layer_raw": ce_res["evidence_layer_raw"],
+            "elements": {x["key"]: x["score_0_1"] for x in ce_res["elements"]},
+            "element_meta": {x["key"]: x["element"] for x in ce_res["elements"]},
+        })
+    if not rows:
+        return {"rows": [], "you": None, "gaps": [], "verdict": "无对比对象"}
+    you = rows[0]
+    competitors = rows[1:]
+    # 内容质量综合分(6维与内容工程等权平均;两者在结构/证据/权威上有重叠,仅作离线相对排名)
+    for r in rows:
+        r["combined"] = round((r["score_6dim"] + r["content_score"]) / 2, 1)
+    ranked = sorted(rows, key=lambda r: -r["combined"])
+    you_rank = ranked.index(you) + 1
+    # 你落后的要素:只跟综合分不低于你的竞品比,别拿垃圾页在 fluency/readability 上的虚高单要素当差距
+    strong_comps = [c for c in competitors if c["combined"] >= you["combined"]]
+    gaps = []
+    for key, name in you["element_meta"].items():
+        comp_max = max((c["elements"].get(key, 0) for c in strong_comps), default=0)
+        if comp_max > you["elements"].get(key, 0) + 0.05:
+            gaps.append({"element": name, "your": round(you["elements"].get(key, 0), 2),
+                         "best_competitor": round(comp_max, 2),
+                         "gap": round(comp_max - you["elements"].get(key, 0), 2)})
+    gaps.sort(key=lambda g: -g["gap"])
+    second = max((c["combined"] for c in competitors), default=None)
+    if not competitors:
+        verdict = "只给了你自己,没有竞品可比。"
+    elif second is not None and you["combined"] <= second and you_rank == 1:
+        verdict = "你和头名打平(内容质量综合分均 %s),还没拉开差距,盯防 %d 个被追平要素(仅内容质量层离线估算)。" % (
+            you["combined"], len(gaps))
+    elif you_rank == 1:
+        verdict = "你内容质量综合分领先(%s),守住,盯防 %d 个被追平要素(仅内容质量层离线估算,实际是否被引用须跑 measure)。" % (
+            you["combined"], len(gaps))
+    else:
+        verdict = "你排第 %d/%d,内容质量综合分 %s 落后头名 %s。先补差距最大的证据/结构要素(仅内容质量层离线估算)。" % (
+            you_rank, len(rows), you["combined"], ranked[0]["combined"])
+    return {
+        "rows": [{"label": r["label"], "rank": ranked.index(r) + 1,
+                  "score_6dim": r["score_6dim"], "content_score": r["content_score"],
+                  "evidence_layer_raw": r["evidence_layer_raw"], "combined": r["combined"]}
+                 for r in rows],
+        "you": you["label"], "you_rank": you_rank,
+        "gaps": gaps[:8],
+        "verdict": verdict,
+        "note": "对标只比内容质量层(可离线);内容质量综合分=6维与内容工程等权平均,两者在结构/证据上有重叠,"
+                "仅作相对排名不是权威总评。差距要素只跟综合分不低于你的竞品比,只用真实素材补,绝不编造。"
+                "谁真被引用还要跑 measure 采样。",
+    }
+
+
+def render_compare(c):
+    o = ["# 对标作战:内容质量层", ""]
+    o.append("**裁决:%s**" % c["verdict"])
+    o.append("")
+    o.append("| 排名 | 对象 | 内容质量综合分 | 6 维 | 内容工程 | 证据层/43 |")
+    o.append("|---|---|---|---|---|---|")
+    for r in sorted(c["rows"], key=lambda r: r["rank"]):
+        mark = " ★你" if r["label"] == c["you"] else ""
+        o.append("| %d | %s%s | %s | %s | %s | %s |" % (
+            r["rank"], r["label"], mark, r["combined"], r["score_6dim"],
+            r["content_score"], r["evidence_layer_raw"]))
+    o.append("")
+    if c["gaps"]:
+        o.append("## 你落后的要素(差距最大优先,补真实素材)")
+        for g in c["gaps"]:
+            o.append("- %s:你 %s vs 竞品最佳 %s(差 %s)" % (
+                g["element"], g["your"], g["best_competitor"], g["gap"]))
+    else:
+        o.append("各要素你都不落后,守住即可。")
+    o.append("")
+    o.append("> " + c["note"])
+    return "\n".join(o)
+
+
+# 瓶颈层 → 主题色
+_LAYER_COLOR = [("内容质量", "#e8833a"), ("索引", "#d73027"), ("信源", "#2b6cb0")]
+# 行动层 → 标签色
+_ACTION_COLOR = {"内容质量": "#e8833a", "索引收录": "#d73027", "基础设施": "#7c5cbf",
+                 "信源投放": "#2b6cb0", "监测闭环": "#1a9850"}
+
+
+def _layer_color(layer_str):
+    for k, c in _LAYER_COLOR:
+        if k in layer_str:
+            return c
+    return "#444"
+
+
+def _bar(pct, color, label):
+    pct = max(0.0, min(100.0, pct))
+    return ('<div class="barwrap"><div class="barlabel">%s</div>'
+            '<div class="bar"><div class="fill" style="width:%.1f%%;background:%s"></div></div></div>'
+            % (label, pct, color))
+
+
+def render_html(pb):
+    e = _html.escape
+    b = pb["bottleneck"]
+    s = pb["score_6dim"]
+    ce_ = pb["content_engineering"]
+    color = _layer_color(b["bottleneck_layer"])
+    conf = b.get("confidence", "高")
+
+    actions = []
+    for i, a in enumerate(pb["unified_actions"], 1):
+        c = _ACTION_COLOR.get(a["layer"], "#444")
+        actions.append('<li><span class="tag" style="background:%s">%s</span> %s</li>'
+                       % (c, e(a["layer"]), e(a["action"])))
+
+    tiers_html = []
+    for tier in ["P0", "P1", "P2"]:
+        items = pb["sourcing"]["delivery_sop"]["tiers"][tier]
+        if not items:
+            continue
+        chips = "".join('<span class="chip">%s<small>·%d</small></span>'
+                        % (e(it["platform"]), it["score"]) for it in items)
+        label = {"P0": "跨引擎共识/命脉首发", "P1": "单引擎高权重/次轮", "P2": "补充覆盖,按品类回判"}[tier]
+        tiers_html.append('<div class="tier"><div class="tierhd"><b>%s</b> %s</div>%s</div>'
+                          % (tier, e(label), chips))
+
+    prompts = pb["measure_kit"].get("prompts_to_ask", [])[:12]
+    prompt_lis = "".join("<li>%s</li>" % e(p) for p in prompts)
+
+    title = e(pb["brand"] or pb["category"] or "目标站点")
+    evid = ce_["evidence_layer_raw"]
+    qc = ce_.get("query_coverage")
+    qc_html = (' · 需求覆盖率 <b>%s</b>' % qc) if qc is not None else ""
+
+    return """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GEO 作战手册 · %(title)s</title><style>
+*{box-sizing:border-box}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",Segoe UI,Roboto,sans-serif;
+max-width:880px;margin:0 auto;padding:28px 20px;color:#222;background:#fafafa;line-height:1.6}
+h1{font-size:26px;margin:0 0 4px}
+.meta{color:#666;font-size:13px;margin-bottom:20px}
+.hero{border-left:6px solid %(color)s;background:#fff;border-radius:8px;padding:18px 20px;
+box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:20px}
+.hero .lab{font-size:12px;color:#888;letter-spacing:1px}
+.hero .layer{font-size:22px;font-weight:700;color:%(color)s;margin:2px 0 6px}
+.hero .conf{font-size:12px;color:#888}
+.hero .act{margin-top:10px;padding-top:10px;border-top:1px solid #f0f0f0;font-size:15px}
+.card{background:#fff;border-radius:8px;padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:18px}
+.card h2{font-size:16px;margin:0 0 12px;color:#333}
+.barwrap{margin:8px 0}
+.barlabel{font-size:13px;color:#555;margin-bottom:3px}
+.bar{height:14px;background:#eee;border-radius:7px;overflow:hidden}
+.fill{height:100%%;border-radius:7px}
+ol.actions{margin:0;padding-left:22px}
+ol.actions li{margin:7px 0;font-size:14px}
+.tag{color:#fff;font-size:11px;padding:1px 7px;border-radius:4px;margin-right:6px;white-space:nowrap}
+.tier{margin:10px 0}
+.tierhd{font-size:13px;color:#555;margin-bottom:5px}
+.chip{display:inline-block;background:#eef3fb;color:#2b6cb0;border-radius:14px;padding:3px 11px;
+margin:3px 5px 3px 0;font-size:13px}
+.chip small{color:#88a}
+ul.prompts{columns:2;font-size:13px;color:#555;margin:6px 0}
+.note{font-size:12px;color:#888;border-top:1px solid #eee;padding-top:12px;margin-top:8px}
+@media print{body{background:#fff}.card,.hero{box-shadow:none;border:1px solid #eee}ul.prompts{columns:1}}
+</style></head><body>
+<h1>GEO 作战手册 · %(title)s</h1>
+<div class="meta">市场 %(market)s · 目标引擎 %(engines)s · 离线确定性生成 · HeiGe-GEO-SEO 开源 MIT</div>
+
+<div class="hero">
+<div class="lab">八层瓶颈定位 · 先看这里</div>
+<div class="layer">%(layer)s</div>
+<div class="conf">判断置信度:%(conf)s</div>
+<div class="act"><b>第一动作:</b>%(first)s</div>
+</div>
+
+<div class="card"><h2>评分</h2>
+%(bar6)s
+%(barce)s
+%(barev)s
+<div style="font-size:12px;color:#888;margin-top:6px">6 维 %(s6)d/100(%(g6)s) · 内容工程 %(sce)s/100(%(gce)s)%(qc)s · 为何没被引用:%(verdict)s</div>
+</div>
+
+<div class="card"><h2>统一行动清单(按杠杆位排序:证据层 &gt; 收录 &gt; 结构 &gt; 投放 &gt; 监测)</h2>
+<ol class="actions">%(actions)s</ol></div>
+
+<div class="card"><h2>信源策略 · 分层投放</h2>%(tiers)s</div>
+
+<div class="card"><h2>监测采集闭环</h2>
+<div style="font-size:13px;color:#555">%(protocol)s</div>
+<div style="font-size:13px;color:#555;margin-top:6px"><b>要去问的 prompt(节选):</b></div>
+<ul class="prompts">%(prompts)s</ul>
+<div style="font-size:12px;color:#888">采集回的 AI 回答喂 <code>geo_cli measure --input records.json</code> 闭环。</div>
+</div>
+
+<div class="note">%(note)s</div>
+</body></html>""" % {
+        "title": title,
+        "market": e(pb["market"]),
+        "engines": e("、".join(pb["target_engines"]) or "(未指定)"),
+        "color": color,
+        "layer": e(b["bottleneck_layer"]),
+        "conf": e(conf),
+        "first": e(b["first_action"]),
+        "bar6": _bar(s["total"], "#2b6cb0", "6 维评分 %d/100" % s["total"]),
+        "barce": _bar(ce_["score"], "#e8833a", "内容工程 %s/100" % ce_["score"]),
+        "barev": _bar(evid / 43 * 100, "#d73027",
+                      "证据引用层 %s/43(权重最高的内容杠杆,方向性口径)" % evid),
+        "s6": s["total"], "g6": e(s["grade"]),
+        "sce": ce_["score"], "gce": e(ce_["grade"]), "qc": qc_html,
+        "verdict": e(pb["diagnosis"]["verdict"]),
+        "actions": "".join(actions),
+        "tiers": "".join(tiers_html) or '<div style="color:#888">(未指定引擎)</div>',
+        "protocol": e(pb["measure_kit"]["protocol"]),
+        "prompts": prompt_lis or "<li>(未给品牌/品类)</li>",
+        "note": e(pb["note"]),
+    }

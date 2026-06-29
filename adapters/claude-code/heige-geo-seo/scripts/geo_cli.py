@@ -532,10 +532,42 @@ def cmd_playbook(args):
         robots_text=_read(args.robots) if args.robots else None,
         llms_text=_read(args.llms) if args.llms else None,
         competitors=args.competitor or None)
+    if args.html:
+        with open(args.html, "w", encoding="utf-8") as fh:
+            fh.write(playbooklib.render_html(pb))
+        print("写入 HTML 作战手册 %s" % args.html)
     if args.json:
         print(json.dumps(pb, ensure_ascii=False, indent=2))
         return 0
-    _emit(playbooklib.render_markdown(pb), args.out)
+    if not args.html or args.out:
+        _emit(playbooklib.render_markdown(pb), args.out)
+    return 0
+
+
+def cmd_compare(args):
+    queries = list(args.query or [])
+    if args.query_file:
+        queries += [ln.strip() for ln in _read(args.query_file).splitlines() if ln.strip()]
+    if not os.path.exists(args.input):
+        print("找不到文件: %s" % args.input, file=sys.stderr)
+        return 2
+    pages = [(args.label or "你", htmldoc.from_string(_read(args.input)))]
+    for i, spec in enumerate(args.competitor_page or [], 1):
+        if "::" in spec:
+            lbl, path = spec.split("::", 1)
+        else:
+            lbl, path = "竞品%d" % i, spec
+        path = path.strip()
+        if not os.path.exists(path):
+            print("找不到竞品文件: %s(来自 --competitor-page %s)" % (path, spec), file=sys.stderr)
+            return 2
+        pages.append((lbl.strip(), htmldoc.from_string(_read(path))))
+    result = playbooklib.compare(pages, brand=args.brand, queries=queries or None,
+                                 market=args.market)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return 0
+    _emit(playbooklib.render_compare(result), args.out)
     return 0
 
 
@@ -881,9 +913,23 @@ def build_parser():
     pb.add_argument("--robots", help="robots.txt 文件")
     pb.add_argument("--llms", help="llms.txt 文件")
     pb.add_argument("--market", choices=["auto", "cn", "global"], default="auto")
+    pb.add_argument("--html", help="输出静态可打印 HTML 作战手册到此路径")
     pb.add_argument("--json", action="store_true")
-    pb.add_argument("--out")
+    pb.add_argument("--out", help="输出 markdown 到此路径")
     pb.set_defaults(func=cmd_playbook)
+
+    # compare
+    cp = sub.add_parser("compare", help="对标作战(你的页 vs 竞品页,逐维逐要素比强弱+差距点)")
+    cp.add_argument("--input", required=True, help="你的 HTML 文件")
+    cp.add_argument("--label", help="你的标签(默认'你')")
+    cp.add_argument("--competitor-page", action="append", help='竞品 HTML:"标签::路径" 或 路径,可多次')
+    cp.add_argument("--brand")
+    cp.add_argument("--query", action="append", help="目标问句,可多次")
+    cp.add_argument("--query-file")
+    cp.add_argument("--market", choices=["auto", "cn", "global"], default="auto")
+    cp.add_argument("--json", action="store_true")
+    cp.add_argument("--out")
+    cp.set_defaults(func=cmd_compare)
 
     # measure
     me = sub.add_parser("measure", help="监测采集闭环(--kit 出采集工具包;喂 records 一键 sov+lostprompt+factcheck)")

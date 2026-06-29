@@ -20,7 +20,7 @@
 - **采样**:同一 prompt 在同一引擎重复跑 3-5 次取稳定性(LLM 非确定性,单次结果统计上不稳定)。
 - **稳定阈值**:200 prompts × 5 引擎约 3000 输出才开始稳定。
 - **分层**:漏斗 Awareness / Evaluation / Conversion / Post-Purchase 四段 × persona × 品牌词/非品牌词。**非品牌词优先于品牌词**(品牌词必中,信息量低)。
-- **来源**:不是历史关键词排名,而是销售通话、客服工单、Reddit、客户访谈、Quora、Google PAA。
+- **来源**:取自销售通话、客服工单、Reddit、客户访谈、Quora、Google PAA,不再靠历史关键词排名。
 
 脚本:`geo_cli prompts --brand X --category Y --competitor Z --problem P --persona R` 生成结构化意图问句集(中英双语,非品牌优先)。真去问大模型交给宿主 agent,把回答回填给 `sov`。
 

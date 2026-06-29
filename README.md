@@ -1,11 +1,11 @@
 # HeiGe-GEO-SEO
 
-![Version](https://img.shields.io/badge/version-1.8.0-blue)
+![Version](https://img.shields.io/badge/version-1.9.0-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 ![Agents](https://img.shields.io/badge/Agents-Claude%20Code%20·%20Codex%20·%20OpenClaw%20·%20Hermes-blue)
 ![Market](https://img.shields.io/badge/Market-China%20First-red)
 ![Python](https://img.shields.io/badge/Python-stdlib%20only-yellow)
-![Tests](https://img.shields.io/badge/tests-246%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-265%20passing-brightgreen)
 
 > 中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。让你的内容和网页被豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini 抓取并引用。
 >
@@ -72,6 +72,17 @@ python3 scripts/geo_cli.py batch a.html b.html --html report.html    # 批量审
 python3 scripts/geo_cli.py attribution --url https://x.com           # GA4 渠道组正则 + UTM + 日志解析
 python3 scripts/geo_cli.py agentready --input page.html              # WebMCP 就绪审计
 ```
+
+**v1.9 作战手册可视化 + 对标作战。**
+
+```bash
+# 旗舰 playbook 出静态可打印 HTML 作战手册(可直接甩给客户)
+python3 scripts/geo_cli.py playbook --input page.html --brand 品牌 --category 品类 --engine 豆包 --html zhanbao.html
+# 对标:你的页 vs 竞品页,逐维逐要素比强弱 + 你落后的差距要素
+python3 scripts/geo_cli.py compare --input mine.html --competitor-page "竞品::comp.html" --query "品类哪个好"
+```
+
+HTML 作战手册静态零脚本可打印(瓶颈定位卡片 + 评分条 + 信源分层 + 监测)。`compare` 给综合分排名和你落后的差距要素,差距最大优先、只补真实素材。
 
 **v1.8 旗舰 `playbook`:一条命令出完整 GEO 作战手册。从工具箱收口成产品。你不用学 29 个命令,先跑这一条。**
 

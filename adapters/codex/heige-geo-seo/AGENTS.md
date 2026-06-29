@@ -10,7 +10,8 @@
 
 ## 能力
 
-- ★旗舰 playbook 一键 GEO 作战手册:八层瓶颈定位(综合 score+cescore+diagnose 判定卡在哪层、先打哪条腿)+ 现状诊断 + 信源策略 + 逐段改写指引 + 监测采集闭环 + 跨层 ROI 行动清单,把整套工具收口成一个交付物
+- ★旗舰 playbook 一键 GEO 作战手册:八层瓶颈定位(综合 score+cescore+diagnose 判定卡在哪层、先打哪条腿)+ 现状诊断 + 信源策略 + 逐段改写指引 + 监测采集闭环 + 跨层杠杆位行动清单,把整套工具收口成一个交付物;--html 出静态可打印 HTML 作战手册(瓶颈卡片+评分条+信源分层+零脚本可分享)
+- 对标作战 compare:你的页 vs 竞品页逐维逐要素比强弱,出综合分排名 + 你落后的差距要素(差距最大优先,只补真实素材),离线只比内容质量层、谁真被引用还要跑 measure
 - measure 监测采集闭环(八层第8层):--kit 出采样协议+buyer prompt集+records模板;喂 records 一键 sov+lostprompt+factcheck 出综合监测表(被推荐概率/声量份额/竞品夺走/错误信息),离线度量、采集寄生宿主 agent
 - 大模型分类与引用行为判断
 - 内容工程 11 要素加权评分(cescore,WaytoAGI 方法论+爬1万条研究权重,逐要素拆解被引用、证据引用层43%为第一杠杆;支持 --query 真需求匹配 + --annotate 段落级要素标注)
@@ -219,7 +220,16 @@ python3 scripts/geo_cli.py measure --kit --brand 你的品牌 --category 品类 
 python3 scripts/geo_cli.py measure --input records.json --brand 你的品牌 --competitor 竞品   # 喂采集回的回答→一键 sov+lostprompt+factcheck
 ```
 
-**用户该跑的第一条命令是 `playbook`。** 它综合 score+cescore+diagnose 先判定你卡在八层哪一层(内容质量层 vs 索引层 vs 信源策略层)、第一动作做什么,再给跨层按 ROI 排序的统一行动清单。监测=概率:`measure --kit` 给采样协议(每问句每平台 5 次、约 5 平台共 25 次取均值=被推荐概率),宿主 agent 或人工去目标引擎采集 AI 回答,粘进 records.json 喂回 `measure` 闭环。度量离线、绝不编造 AI 回答。
+**用户该跑的第一条命令是 `playbook`。** 它综合 score+cescore+diagnose 先判定你卡在八层哪一层(内容质量层 vs 索引层 vs 信源策略层)、第一动作做什么,再给跨层按杠杆位排序的统一行动清单。监测=概率:`measure --kit` 给采样协议(每问句每平台 5 次、约 5 平台共 25 次取均值=被推荐概率),宿主 agent 或人工去目标引擎采集 AI 回答,粘进 records.json 喂回 `measure` 闭环。度量离线、绝不编造 AI 回答。
+
+**v1.9:作战手册可视化 + 对标作战。**
+
+```bash
+python3 scripts/geo_cli.py playbook --input page.html --brand X --category 品类 --engine 豆包 --html zhanbao.html   # 出静态可打印 HTML 作战手册(可甩给客户)
+python3 scripts/geo_cli.py compare --input mine.html --label 我 --competitor-page "竞品::comp.html" --query "品类哪个好"   # 对标:逐维逐要素比强弱+差距点
+```
+
+HTML 作战手册静态零脚本可打印(瓶颈卡片+评分条+信源分层+监测)。`compare` 把你的页和竞品页都打 6 维+内容工程分,出综合分排名和你落后的差距要素(只比内容质量层,可离线;谁真被引用还要跑 measure 采样)。
 
 **新增知识库:** `knowledge/05-engine-differences.md`(引擎差异矩阵)、`knowledge/06-ai-visibility-measurement.md`(度量学,含引用质量层)、`knowledge/07-global-scenario.md`(海外全球场景)、`03-publishing-channels.md` 补国产引擎信源权重表(新榜 1683.6 万条实证,来源 newrank.cn/report/detail/433)+ 平台依附 vs 域名主权。
 
