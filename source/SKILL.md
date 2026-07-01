@@ -1,6 +1,6 @@
 ---
 name: heige-geo-seo
-version: 1.9.0
+version: 1.10.0
 description: >-
   HeiGe-GEO-SEO 是一套面向中国市场优先的 GEO(生成式引擎优化)+ SEO 内容优化系统。当用户需要让内容/网页被
   AI 大模型(豆包、通义千问、DeepSeek、文心、腾讯元宝、ChatGPT、Perplexity、Claude、Gemini)抓取并引用、

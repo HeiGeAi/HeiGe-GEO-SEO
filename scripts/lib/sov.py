@@ -18,6 +18,18 @@ _TIERS = [
 ]
 
 _URL_RE = re.compile(r"https?://([^/\s)\]]+)")
+# 缺失语境识别:AI 说"找不到你/未收录你"时品牌串虽出现但不算被推荐。
+# 关键是贴身相邻:缺失标记必须紧挨品牌(前或后),不是同句任意位置命中就抑制,
+# 否则会误杀"黑哥AI找不到对手""没找到比黑哥AI更好的"这类真提及(v1.10 首版的坑)。
+# 品牌"前"紧跟缺失动词(可隔"叫做/名为/一个"等实体引导词):没找到 [明确叫做] BRAND
+_ABS_BEFORE = re.compile(
+    r"(?:没有?找到|没找到|未找到|找不到|搜不到|查不到|没有查到|查无此?|"
+    r"搜索结果(?:中|里)?没有|结果(?:中|里)?没有|没听说过|记错(?:了)?名(?:字|称)?)"
+    r"(?:明确|正式|确切)?(?:叫做|名为|名叫|称为|叫|一个|这个|这款|该\S{0,4})?$")
+# 品牌"后"紧跟缺失标记(可隔"这个平台/该工具"):BRAND [这个平台] 尚未收录 / 不在收录
+_ABS_AFTER = re.compile(
+    r"^(?:这个|这款|该)?(?:平台|工具|品牌|产品|网站|应用|软件)?"
+    r"(?:(?:未|尚未|暂未|暂无|还没|一直没|均未)(?:被)?.{0,5}?收录|不在收录|查无此)")
 
 # 被引语境情感词典(确定性):正面 = 被推荐,负面 = 被劝退
 # "不X" 类否定由否定前缀检测处理,_NEG_WORDS 只放本身就负的词
@@ -82,6 +94,29 @@ def _aliases_for(name, aliases):
     return out
 
 
+def _first_present_idx(answer, alias):
+    """品牌串首个"真实出现"的下标。出现在"没找到/未收录/不存在"窗口里的不算(AI 说找不到你
+    不等于推荐你),全部落在缺失语境则返回 None。真实采集发现:秘塔答"没有找到黑哥AI"被误判成提及。"""
+    start = 0
+    n = len(alias)
+    stops = "。！？；，、：!?;,\n"
+    while True:
+        p = answer.find(alias, start)
+        if p < 0:
+            return None
+        # 前片:当前小句句首→品牌前;后片:品牌后→当前小句句尾。缺失标记必须贴身相邻才抑制
+        lo = p
+        while lo > 0 and answer[lo - 1] not in stops:
+            lo -= 1
+        hi = p + n
+        while hi < len(answer) and answer[hi] not in stops:
+            hi += 1
+        if _ABS_BEFORE.search(answer[lo:p]) or _ABS_AFTER.match(answer[p + n:hi]):
+            start = p + n
+            continue
+        return p
+
+
 def parse_answer(answer, brands, aliases=None):
     """返回 {brand: position}(按首次出现顺序排名,1=最先)+ 引用域名列表。"""
     first_idx = {}
@@ -90,8 +125,8 @@ def parse_answer(answer, brands, aliases=None):
         for alias in _aliases_for(b, aliases):
             if not alias:
                 continue
-            p = answer.find(alias)
-            if p >= 0 and (idx is None or p < idx):
+            p = _first_present_idx(answer, alias)
+            if p is not None and (idx is None or p < idx):
                 idx = p
         if idx is not None:
             first_idx[b] = idx
