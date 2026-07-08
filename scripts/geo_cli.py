@@ -37,8 +37,8 @@ from lib import (htmldoc, scoring, generators, instruction, prompts as promptlib
 
 
 def _read(path):
-    with open(path, "r", encoding="utf-8", errors="replace") as fh:
-        return fh.read()
+    # 编码自动探测(utf-8剥BOM严格→gb18030→utf-8宽松),GBK中文页和带BOM的robots都能正确读
+    return htmldoc.read_text(path)
 
 
 def _emit(text, out):
@@ -406,6 +406,9 @@ def cmd_recommend(args):
             for f in result["feeds_engines"]:
                 print("  %s  权重%d  [%s] %s" % (f["engine"], f["weight"],
                                                f["source"], f["why"]))
+            # 0 命中时把 note 也带给文本模式,别让用户分不清"喂不了"和"没查到"
+            if not result["feeds_engines"] and result.get("note"):
+                print(result["note"])
         return 0
     if not args.engine:
         print("需要 --engine(可多次,或 cn-all / overseas-all)或 --reverse 平台名",
@@ -535,7 +538,8 @@ def cmd_playbook(args):
     if args.html:
         with open(args.html, "w", encoding="utf-8") as fh:
             fh.write(playbooklib.render_html(pb))
-        print("写入 HTML 作战手册 %s" % args.html)
+        # 状态行走 stderr,保证 --json 同用时 stdout 只含 JSON,可直接重定向/进管道
+        print("写入 HTML 作战手册 %s" % args.html, file=sys.stderr)
     if args.json:
         print(json.dumps(pb, ensure_ascii=False, indent=2))
         return 0

@@ -3,7 +3,7 @@
 度量学 100% 离线。输入是宿主 agent / 人工跑大模型后回填的"prompt→answer"记录,
 脚本算可见度,不自己联网。对齐国内口径:提及率 + SOV 声量占比 + 推荐排名 + 别名合并。
 
-records: list of {prompt, engine, answer[, run]}
+records: list of {prompt, engine, answer[, run, turn, conversation]}
 """
 
 import re
@@ -17,19 +17,27 @@ _TIERS = [
     ("新进入者", 0, 0),
 ]
 
-_URL_RE = re.compile(r"https?://([^/\s)\]]+)")
+# host 只吃合法域名字符,端口单独吞掉不进域名;URL 后紧跟的中文/全角标点不再被吞进 host
+_URL_RE = re.compile(r"https?://([A-Za-z0-9.-]+)(?::\d+)?")
 # 缺失语境识别:AI 说"找不到你/未收录你"时品牌串虽出现但不算被推荐。
 # 关键是贴身相邻:缺失标记必须紧挨品牌(前或后),不是同句任意位置命中就抑制,
 # 否则会误杀"黑哥AI找不到对手""没找到比黑哥AI更好的"这类真提及(v1.10 首版的坑)。
+# 标记与品牌之间允许空白(中英混排里英文品牌两侧惯例带空格,如"找不到 HeiGeAI")。
 # 品牌"前"紧跟缺失动词(可隔"叫做/名为/一个"等实体引导词):没找到 [明确叫做] BRAND
 _ABS_BEFORE = re.compile(
     r"(?:没有?找到|没找到|未找到|找不到|搜不到|查不到|没有查到|查无此?|"
-    r"搜索结果(?:中|里)?没有|结果(?:中|里)?没有|没听说过|记错(?:了)?名(?:字|称)?)"
-    r"(?:明确|正式|确切)?(?:叫做|名为|名叫|称为|叫|一个|这个|这款|该\S{0,4})?$")
-# 品牌"后"紧跟缺失标记(可隔"这个平台/该工具"):BRAND [这个平台] 尚未收录 / 不在收录
+    r"搜索结果(?:中|里)?没有|结果(?:中|里)?没有|没听说过|记错(?:了)?名(?:字|称)?|"
+    r"并?不存在|(?:目前|现在|市面上|市场上|国内|全网)?并?(?<!有)没有)"
+    r"\s*(?:明确|正式|确切)?\s*(?:叫做|名为|名叫|称为|叫|一个|这个|这款|该\S{0,4})?\s*$")
+# 品牌"后"紧跟缺失标记(可隔"这个平台/该工具"):BRAND [这个平台] 尚未收录 / 不存在
+# "不存在"要求贴到小句末尾,否则"黑哥AI不存在套路"这类真提及会被误杀
 _ABS_AFTER = re.compile(
-    r"^(?:这个|这款|该)?(?:平台|工具|品牌|产品|网站|应用|软件)?"
-    r"(?:(?:未|尚未|暂未|暂无|还没|一直没|均未)(?:被)?.{0,5}?收录|不在收录|查无此)")
+    r"^\s*(?:这个|这款|该)?\s*(?:平台|工具|品牌|产品|网站|应用|软件)?\s*"
+    r"(?:(?:未|尚未|暂未|暂无|还没|一直没|均未)(?:被)?.{0,5}?收录|不在收录|查无此|并?不存在\s*$)")
+# 缺失动词命中但品牌后是比较级/属性结构时,整句其实是"找不到比它更好/找不到它的缺点"类
+# 最高级夸奖,不抑制(与上面注释声明的设计意图一致)
+_KEEP_AFTER = re.compile(
+    r"^\s*(?:更|最|比|一样|这样|这么|般|的\s*(?:缺点|短板|不足|毛病|对手|敌手|替代|竞品))")
 
 # 被引语境情感词典(确定性):正面 = 被推荐,负面 = 被劝退
 # "不X" 类否定由否定前缀检测处理,_NEG_WORDS 只放本身就负的词
@@ -40,26 +48,62 @@ _NEG_WORDS = ("避免", "别用", "争议", "问题", "缺点", "弱", "风险",
               "崩", "慎用", "avoid", "issue", "problem", "downside",
               "poor", "weak", "risk", "controversy")
 _NEG_PREFIX = ("不", "没", "无", "别", "勿", "未", "莫", "非", "算不上", "称不上")
+# 英文否定词:窗口按词取(前 2 个词),半角 3 字符窗口逮不住 "not recommend"
+_EN_NEG = ("not", "no", "never", "hardly", "barely", "cannot", "neither", "nor",
+           "don't", "doesn't", "didn't", "won't", "wouldn't", "isn't", "aren't",
+           "wasn't", "can't", "couldn't", "shouldn't")
+# "没问题/无风险"是夸奖不是负面:先按正面计数并从文本剔除,防止裸词"问题/风险"记负面。
+# 长习语在前,避免短的先剔除截断长的
+_NEG_IDIOM_POS = ("没有任何问题", "没有什么问题", "没什么问题", "没有问题", "没啥问题",
+                  "没问题", "不成问题", "没毛病", "没有任何风险", "没什么风险",
+                  "没有风险", "无风险", "零风险", "没有缺点", "没什么缺点", "无缺点")
+# 英文情感词加 ASCII 边界,防 desktop 命中 top、topic 命中 top 这类裸子串误报;
+# 允许 s/es/ed/ing 常见词形变化,数字后缀(top10)不挡
+_ASCII_HIT = {w: re.compile(r"(?<![a-z0-9])" + re.escape(w) + r"(?:s|es|ed|ing)?(?![a-z0-9])")
+              for w in (_POS_WORDS + _NEG_WORDS) if w.isascii()}
+
+
+def _hit_positions(text, word):
+    """word 在 text(已小写)里的命中位置。ASCII 词走边界正则,CJK 词走子串。"""
+    w = word.lower()
+    if w in _ASCII_HIT:
+        return [m.start() for m in _ASCII_HIT[w].finditer(text)]
+    out = []
+    start = 0
+    while True:
+        i = text.find(w, start)
+        if i < 0:
+            return out
+        out.append(i)
+        start = i + len(w)
+
+
+def _negated_before(text, i):
+    """位置 i 处的情感词是否被否定修饰:中文查前 3 字符,英文查前 2 个词。"""
+    pre = text[max(0, i - 24):i]
+    if any(n in pre[-3:] for n in _NEG_PREFIX):
+        return True
+    words = re.findall(r"[a-z']+", pre)
+    return any(w in _EN_NEG for w in words[-2:])
 
 
 def _count_sentiment(win):
     """窗口内数正负面信号,正面词被否定前缀修饰则翻转为负面。"""
     text = win.lower()
-    neg = sum(text.count(w.lower()) for w in _NEG_WORDS)
-    pos = 0
+    pos = neg = 0
+    for idiom in _NEG_IDIOM_POS:
+        c = text.count(idiom)
+        if c:
+            pos += c
+            text = text.replace(idiom, " ")
+    for w in _NEG_WORDS:
+        neg += len(_hit_positions(text, w))
     for w in _POS_WORDS:
-        wl = w.lower()
-        start = 0
-        while True:
-            i = text.find(wl, start)
-            if i < 0:
-                break
-            pre = text[max(0, i - 3):i]
-            if any(n in pre for n in _NEG_PREFIX):
+        for i in _hit_positions(text, w):
+            if _negated_before(text, i):
                 neg += 1
             else:
                 pos += 1
-            start = i + len(wl)
     return pos, neg
 
 
@@ -74,7 +118,8 @@ def _sentiment_window(answer, lo, hi):
 
 
 def _domain(host):
-    host = host.lower()
+    # 端口与句尾半角点兜底剥掉,保证归属比对只看主机名
+    host = host.lower().split(":")[0].rstrip(".")
     if host.startswith("www."):
         host = host[4:]
     return host
@@ -111,7 +156,11 @@ def _first_present_idx(answer, alias):
         hi = p + n
         while hi < len(answer) and answer[hi] not in stops:
             hi += 1
-        if _ABS_BEFORE.search(answer[lo:p]) or _ABS_AFTER.match(answer[p + n:hi]):
+        after = answer[p + n:hi]
+        if _ABS_BEFORE.search(answer[lo:p]) and not _KEEP_AFTER.match(after):
+            start = p + n
+            continue
+        if _ABS_AFTER.match(after):
             start = p + n
             continue
         return p
@@ -223,7 +272,10 @@ def analyze(records, brand, competitors=None, aliases=None,
     citation_sov = ({b: round(citation[b] / total_citations * 100, 1) if total_citations else 0.0
                      for b in brands} if domains else None)
 
-    tier = classify_tier(mention_sov[brand], weighted_sov[brand])
+    # SOV 档位阈值来自竞品对比方法学:单品牌模式下 mention_sov 恒 100%,
+    # 评档必然是"领导者"假结论,无竞品时不评档
+    tier = (classify_tier(mention_sov[brand], weighted_sov[brand])
+            if competitors else "无竞品数据,不评档")
 
     engine_breakdown = {}
     for eng, pe in per_engine.items():
@@ -235,8 +287,13 @@ def analyze(records, brand, competitors=None, aliases=None,
     by_turn = None
     turn_retention = None
     if has_turn:
+        # 对话配对:多轮对话里每轮问句天然不同,拿 prompt 配对必得 0% 留存。
+        # 带 conversation 字段按 (engine, conversation) 分组;没有就按记录顺序
+        # 每引擎重建:turn 不再递增(回到 <= 上一轮)即视为新对话开始
         tg = {}
-        conv = {}  # (prompt, engine) -> {turn: present}
+        convs = []       # 每个元素 {turn: present},代表一段对话
+        explicit = {}    # (engine, conversation) -> conv dict
+        seq_last = {}    # engine -> (conv dict, 上一条的 turn)
         for r in records:
             t = r.get("turn", 1)
             present = brand in parse_answer(r.get("answer", ""), brands, aliases)["positions"]
@@ -244,23 +301,40 @@ def analyze(records, brand, competitors=None, aliases=None,
             slot[1] += 1
             if present:
                 slot[0] += 1
-            conv.setdefault((r.get("prompt", ""), r.get("engine", "default")), {})[t] = present
+            eng = r.get("engine", "default")
+            if "conversation" in r:
+                cd = explicit.get((eng, r["conversation"]))
+                if cd is None:
+                    cd = {}
+                    explicit[(eng, r["conversation"])] = cd
+                    convs.append(cd)
+            else:
+                prev = seq_last.get(eng)
+                if prev is None or t <= prev[1]:
+                    cd = {}
+                    convs.append(cd)
+                else:
+                    cd = prev[0]
+                seq_last[eng] = (cd, t)
+            # 同轮重复采样任一次命中即算命中,别让后一条覆盖前一条
+            cd[t] = cd.get(t, False) or present
         by_turn = {str(t): {"hit": h, "total": n,
                             "rate": round(h / n * 100, 1) if n else 0.0}
                    for t, (h, n) in sorted(tg.items())}
         base = kept = 0
-        for turns in conv.values():
-            if not turns:
-                continue
+        for turns in convs:
+            if len(turns) < 2:
+                continue  # 单轮对话没有留存概念,不进分母
             first_t = min(turns)
             if turns[first_t]:
                 base += 1
-                if any(p for t, p in turns.items() if t > first_t):
+                if any(p for t2, p in turns.items() if t2 > first_t):
                     kept += 1
         turn_retention = {
             "first_turn_present": base, "retained_later": kept,
             "retention_rate": round(kept / base * 100, 1) if base else None,
-            "note": "首轮命中的对话里,后续轮仍提到你的比例。被追问后翻盘=低留存。",
+            "note": "首轮命中的多轮对话里,后续轮仍提到你的比例。被追问后翻盘=低留存。"
+                    "记录可带 conversation 字段标对话归属;缺省按 turn 序就近配对。",
         }
 
     sent_total = sum(sentiment_counts.values())

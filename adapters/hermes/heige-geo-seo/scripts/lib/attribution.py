@@ -102,16 +102,25 @@ def parse_access_log(log_text):
     各 AI 爬虫的命中次数和抓取页面。回答'哪个 AI 抓过你、抓了哪些页'。"""
     hits = {}
     pages = {}
+    parsed_lines = 0
+    unparsed_lines = 0
     line_re = re.compile(r'"(?:GET|POST|HEAD)\s+(\S+).*?"\s+\d+\s+\S+\s+"[^"]*"\s+"([^"]*)"')
     for line in log_text.splitlines():
+        if not line.strip():
+            continue
         m = line_re.search(line)
-        path, ua = (m.group(1), m.group(2)) if m else (None, line)
+        if not m:
+            # 解析不出 UA 字段的行(common 格式/畸形行)跳过,整行当 UA 扫会把
+            # URL/referer 里的爬虫名(如 /blog/what-is-GPTBot)误记成爬虫命中
+            unparsed_lines += 1
+            continue
+        parsed_lines += 1
+        path, ua = m.group(1), m.group(2)
         for bot in _AI_BOT_UA:
             if bot in ua:
                 hits[bot] = hits.get(bot, 0) + 1
-                if path:
-                    pages.setdefault(bot, {})
-                    pages[bot][path] = pages[bot].get(path, 0) + 1
+                pages.setdefault(bot, {})
+                pages[bot][path] = pages[bot].get(path, 0) + 1
                 break
 
     by_bot = []
@@ -125,6 +134,12 @@ def parse_access_log(log_text):
         by_bot.append({"bot": bot, "engine": engine, "purpose": purpose,
                        "region": region, "hits": n,
                        "top_pages": [{"path": p, "hits": c} for p, c in top_pages]})
+    note = ("用户触发类(*-User)才代表有人正在 AI 里读你;训练/索引类不是实时检索。"
+            "Grok/Copilot-agent 测不到,需看 referrer。")
+    total = parsed_lines + unparsed_lines
+    if unparsed_lines and unparsed_lines * 2 > total:
+        note += ("警告:%d/%d 行解析不出 UA 字段,日志疑似 common 格式(无 UA),"
+                 "已跳过;请改用 combined 格式日志。" % (unparsed_lines, total))
     return {
         "bots_seen": len(hits),
         "total_ai_hits": sum(hits.values()),
@@ -132,9 +147,9 @@ def parse_access_log(log_text):
         "by_purpose": purpose_totals,
         "by_bot": by_bot,
         "realtime_read_hits": purpose_totals["user"],
+        "unparsed_lines": unparsed_lines,
         "blindspots": _UA_BLINDSPOTS,
-        "note": "用户触发类(*-User)才代表有人正在 AI 里读你;训练/索引类不是实时检索。"
-                "Grok/Copilot-agent 测不到,需看 referrer。",
+        "note": note,
     }
 
 

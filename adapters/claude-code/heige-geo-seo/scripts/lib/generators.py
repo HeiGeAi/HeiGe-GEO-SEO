@@ -7,6 +7,7 @@ See source/knowledge/02-crawler-logic.md and 04-webpage-architecture.md.
 import json
 import re as _re
 from urllib.parse import quote as _quote
+from xml.sax.saxutils import escape as _xml_escape
 
 
 # --------------------------------------------------------------------------
@@ -359,8 +360,11 @@ def gen_sitemap(urls):
             loc, lastmod = u[0], (u[1] if len(u) > 1 else None)
         else:
             loc, lastmod = u, None
+        # sitemap 协议要求实体转义,带 & 查询参数的 URL 不转义会整个文件被拒收
+        loc = _xml_escape(loc)
         if lastmod:
-            out.append("  <url><loc>%s</loc><lastmod>%s</lastmod></url>" % (loc, lastmod))
+            out.append("  <url><loc>%s</loc><lastmod>%s</lastmod></url>"
+                       % (loc, _xml_escape(str(lastmod))))
         else:
             out.append("  <url><loc>%s</loc></url>" % loc)
     out.append("</urlset>")
@@ -411,17 +415,18 @@ def gen_humans_txt(team=None, site=None, standards=None, last_update=None):
 
 def gen_feed_xml(title, link, items, last_build=None):
     """feed.xml — RSS freshness signal. items: list of (title, pubdate[, link])."""
+    # 标题/链接可能带 & < > (utm 参数、符号标题),不转义会产出非法 XML
     out = ['<?xml version="1.0" encoding="UTF-8"?>',
            '<rss version="2.0"><channel>',
-           "  <title>%s</title>" % title,
-           "  <link>%s</link>" % link]
+           "  <title>%s</title>" % _xml_escape(title),
+           "  <link>%s</link>" % _xml_escape(link)]
     if last_build:
-        out.append("  <lastBuildDate>%s</lastBuildDate>" % last_build)
+        out.append("  <lastBuildDate>%s</lastBuildDate>" % _xml_escape(str(last_build)))
     for item in items:
         t, pub = item[0], item[1]
         il = item[2] if len(item) > 2 else link
         out.append("  <item><title>%s</title><link>%s</link><pubDate>%s</pubDate></item>"
-                   % (t, il, pub))
+                   % (_xml_escape(t), _xml_escape(il), _xml_escape(str(pub))))
     out.append("</channel></rss>")
     return "\n".join(out) + "\n"
 

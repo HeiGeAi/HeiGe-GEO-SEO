@@ -62,19 +62,33 @@ def _query_layer(roots):
     return matrix
 
 
-def _delivery_sop(rec_rows, has_cn, has_overseas):
-    """层 4 检索 → 分层投放 SOP。按"跨引擎共识 + 本次最高分档"切 P0/P1/P2。
+def _lifeline_platforms(engines):
+    """每个目标引擎在权重表里的原生最高权重平台(命脉)。命脉资格只看原生权重,
+    不受 content_type 加分影响,否则聚合分被 +2 抬高后命脉会被挤出 P0。"""
+    lifelines = set()
+    for eng in engines:
+        plats = recommendlib._ENGINE_PLATFORMS.get(eng, [])
+        if not plats:
+            continue
+        top_w = max(w for _, w, _, _ in plats)
+        lifelines.update(p for p, w, _, _ in plats if w == top_w)
+    return lifelines
 
-    用相对分档而非绝对硬阈值:单引擎时权重上限只有 3,绝对阈值 5 会让 P0 恒空、
-    把命脉平台误降到次轮。这里保证单引擎的最高权重命脉平台也能进 P0。
+
+def _delivery_sop(rec_rows, has_cn, has_overseas, engines=None):
+    """层 4 检索 → 分层投放 SOP。按"跨引擎共识 + 引擎原生命脉"切 P0/P1/P2。
+
+    命脉资格按每个目标引擎的原生最高权重平台判定(强制进 P0),不用聚合后的
+    max_s:content_type 统一 +2 会抬高聚合分,把原生权重 3 的命脉挤出相对档。
     """
     tiers = {"P0": [], "P1": [], "P2": []}
-    max_s = max((r["score"] for r in rec_rows), default=0)
+    target = set(engines or [])
+    lifelines = _lifeline_platforms(target)
     for r in rec_rows:
         s = r["score"]
-        n_eng = len(r["feeds_engines"])
-        # P0:跨引擎共识(喂 2+ 目标引擎)或本次结果最高分档(命脉,单引擎也能进)
-        if (n_eng >= 2 and s >= 3) or s >= 5 or (s == max_s and s >= 3):
+        # 跨引擎共识只数目标引擎(防上游任何来源的非目标 feeds 伪造共识)
+        n_eng = len(set(r["feeds_engines"]) & target) if target else len(r["feeds_engines"])
+        if r["platform"] in lifelines or (n_eng >= 2 and s >= 3) or s >= 5:
             tier = "P0"
         elif s >= 2:
             tier = "P1"
@@ -84,9 +98,18 @@ def _delivery_sop(rec_rows, has_cn, has_overseas):
             "platform": r["platform"], "score": s,
             "feeds_engines": r["feeds_engines"], "sources": r["sources"],
         })
-    first_tier = "P0" if tiers["P0"] else ("P1" if tiers["P1"] else "P2")
-    cadence = ("先发 %s 首档(跨引擎共识/命脉平台)试投 → 跑诊断闭环看是否被引 → "
-               "用反馈决定下一档放量,别一上来批量发。" % first_tier)
+    if not rec_rows:
+        # 三档全空(引擎未识别/未指定)时别指向不存在的档位,给纠偏动作
+        cadence = ("无信源偏好数据(引擎未识别或未指定):先核对 --engine"
+                   "(或用 --market 指定市场)拿到分层推荐,再定投放节奏。")
+    else:
+        first_tier = "P0" if tiers["P0"] else ("P1" if tiers["P1"] else "P2")
+        # 括号说明按首档动态取对应语义,别把 P0 的描述写死到所有档位上
+        tier_desc = {"P0": "跨引擎共识/命脉平台", "P1": "单引擎高权重",
+                     "P2": "补充覆盖"}
+        cadence = ("先发 %s 首档(%s)试投 → 跑诊断闭环看是否被引 → "
+                   "用反馈决定下一档放量,别一上来批量发。"
+                   % (first_tier, tier_desc[first_tier]))
     sop = {
         "tiers": tiers,
         "one_draft_four_forms": ["原文长稿(官网/公众号)", "问答体(知乎/百度知道/Quora)",
@@ -114,11 +137,14 @@ def plan(category, roots, engines, content_type=None, market="auto"):
         market = "cn" if has_cn and not has_overseas else ("global" if has_overseas and not has_cn else "auto")
 
     rec = recommendlib.recommend(engines, content_type=content_type) if engines else {"recommendations": []}
-    sop = _delivery_sop(rec["recommendations"], has_cn, has_overseas)
+    sop = _delivery_sop(rec["recommendations"], has_cn, has_overseas, engines=resolved)
 
-    # 给了引擎但一个都没识别 → 收录指引兜底给国内+海外双份,避免空规划误导
-    idx_cn = has_cn or market == "cn" or (bool(resolved) and not has_cn and not has_overseas)
-    idx_overseas = has_overseas or market == "global" or (bool(resolved) and not has_cn and not has_overseas)
+    # 兜底给国内+海外双份收录指引,避免层 2 静默为空误导:
+    # 一是给了引擎但一个都没识别;二是完全没给引擎且市场停在 auto(CLI 默认)
+    fallback = (not has_cn and not has_overseas
+                and (bool(resolved) or market == "auto"))
+    idx_cn = has_cn or market == "cn" or fallback
+    idx_overseas = has_overseas or market == "global" or fallback
 
     return {
         "category": category,

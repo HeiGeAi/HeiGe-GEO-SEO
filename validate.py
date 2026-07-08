@@ -11,6 +11,7 @@
 任一失败,退出码 1,供 CI 硬卡。
 """
 
+import hashlib
 import json
 import os
 import re
@@ -100,6 +101,27 @@ def check_scripts():
 
 
 # 4. build artifacts ------------------------------------------------------
+def _sha256(path):
+    # 与 build.py 的 sha256 同口径,validate 保持零导入独立可跑
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(8192), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def manifest_hash_mismatches(files, pkg):
+    """对 build-manifest 记录的每个文件重算 sha256,返回缺失/不一致的描述列表。"""
+    out = []
+    for rel in sorted(files):
+        p = os.path.join(pkg, rel)
+        if not os.path.isfile(p):
+            out.append("构建产物缺失: %s" % rel)
+        elif _sha256(p) != files[rel]:
+            out.append("构建产物与 build-manifest 哈希不一致(源改了没重跑 build.py,或产物被改动): %s" % rel)
+    return out
+
+
 def check_build(manifest):
     bm_path = os.path.join(ROOT, "adapters", "build-manifest.json")
     if not ok(os.path.isfile(bm_path), "未构建:缺 adapters/build-manifest.json(先跑 build.py)"):
@@ -114,6 +136,11 @@ def check_build(manifest):
            "%s 适配缺 scripts/geo_cli.py" % adapter)
         for d in ("knowledge", "methodology", "workflow", "templates"):
             ok(os.path.isdir(os.path.join(pkg, d)), "%s 适配缺 %s/" % (adapter, d))
+        # 逐文件复算 sha256 与 build-manifest 比对,产物漂移/被篡改/构建过期都在这里卡住
+        files = bm["adapters"].get(adapter, {}).get("files", {})
+        if ok(bool(files), "%s 适配 build-manifest 缺 files 哈希记录" % adapter):
+            for msg in manifest_hash_mismatches(files, pkg):
+                ok(False, "%s 适配 %s" % (adapter, msg))
 
 
 # 5. style red line -------------------------------------------------------

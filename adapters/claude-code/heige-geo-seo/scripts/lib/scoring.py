@@ -9,6 +9,7 @@ without site-level files.
 See source/methodology/scoring-card.md for the rationale.
 """
 
+import datetime as _datetime
 import json
 import math
 import re
@@ -27,7 +28,9 @@ def parse_robots(text):
     sitemaps = []
     current = []
     pending_new_group = True
-    for raw in (text or "").splitlines():
+    # 剥 UTF-8 BOM:Windows 记事本存的 robots.txt 常带,不剥则首行 user-agent
+    # 解析失败、规则错挂到 * 组,同一文件因一个不可见字节评分结论反转
+    for raw in (text or "").lstrip("﻿").splitlines():
         line = raw.split("#", 1)[0].strip()
         if not line:
             continue
@@ -50,6 +53,10 @@ def parse_robots(text):
                 groups[ua][field].append(value)
         elif field == "sitemap":
             sitemaps.append(value)
+        else:
+            # Crawl-delay/Host 等其他指令也终结 UA 堆叠:否则「UA+Crawl-delay」
+            # 后的下一个 UA 被当同组,别人的 Disallow 错挂到前一个 UA 头上
+            pending_new_group = False
     return {"groups": groups, "sitemaps": sitemaps}
 
 
@@ -101,6 +108,9 @@ def _find_nodes(node, type_name, out):
 
 
 def analyze_jsonld(blocks):
+    # 空/纯空白块跳过:SSR 框架和插件常输出空 ld+json 占位标签,
+    # 空块不算解析报错,否则一个空标签让 C4 整项归零且整改理由失实
+    blocks = [b for b in blocks if (b or "").strip()]
     parsed = []
     valid = True
     has_error = False
@@ -162,6 +172,24 @@ _AUTH_DOMAINS = (".gov", ".edu", ".gov.cn", "wikipedia.org", "wikidata.org",
                  "doi.org", "scholar.google.com")
 
 
+def _url_host(url):
+    m = re.search(r"https?://([^/?#]+)", (url or "").lower())
+    if not m:
+        return None
+    # 端口不进主机名;www 前缀归一,www.example.com 与 example.com 视为同站
+    host = m.group(1).split(":")[0]
+    return host[4:] if host.startswith("www.") else host
+
+
+def _own_host(doc):
+    """从 canonical 或 og:url 推本站域名(归一后),取不到返回 None。"""
+    for cand in (doc.canonical, doc.meta.get("og:url")):
+        host = _url_host(cand)
+        if host:
+            return host
+    return None
+
+
 def _is_auth_link(href):
     m = re.search(r"https?://([^/?#]+)", (href or "").lower())
     if not m:
@@ -189,6 +217,13 @@ def _chk(cid, name, weight, earned, note=""):
     return {"id": cid, "name": name, "weight": weight,
             "earned": round(earned, 2), "status": _status(earned, weight),
             "note": note}
+
+
+def _chk_unknown(cid, name, weight, note=""):
+    # 输入缺失时标 unknown 而非 fail:模块 docstring 承诺「缺输入的 check
+    # 从分母剔除」,不给「robots 未声明 Sitemap」这类没检测过的虚假理由
+    return {"id": cid, "name": name, "weight": weight,
+            "earned": 0.0, "status": "unknown", "note": note}
 
 
 # --------------------------------------------------------------------------
@@ -233,13 +268,24 @@ def _dim_B(robots, llms, llms_full, ai_txt, market="global"):
                            "国内 llms.txt 影响弱,未提供不重罚(知识库 04);国内收录看百度推送/被搜索收录"))
     else:
         checks.append(_chk("B1", "llms.txt 存在且结构合格", 8, 0, "未提供 llms.txt"))
-    checks.append(_chk("B2", "llms-full.txt / Markdown 端点", 3, 3 if llms_full else 0,
-                       "" if llms_full else "未提供"))
-    checks.append(_chk("B3", "ai.txt / .well-known", 2, 2 if ai_txt else 0,
-                       "" if ai_txt else "未提供"))
-    sm = bool(robots and robots.get("sitemaps"))
-    checks.append(_chk("B4", "sitemap 在 robots 中声明", 3, 3 if sm else 0,
-                       "" if sm else "robots 未声明 Sitemap"))
+    # B2/B3 三态:None=未检测(unknown,剔出分母),False=检测过不存在(fail)
+    if llms_full is None:
+        checks.append(_chk_unknown("B2", "llms-full.txt / Markdown 端点", 3, "未检测,无法判定"))
+    else:
+        checks.append(_chk("B2", "llms-full.txt / Markdown 端点", 3, 3 if llms_full else 0,
+                           "" if llms_full else "未提供"))
+    if ai_txt is None:
+        checks.append(_chk_unknown("B3", "ai.txt / .well-known", 2, "未检测,无法判定"))
+    else:
+        checks.append(_chk("B3", "ai.txt / .well-known", 2, 2 if ai_txt else 0,
+                           "" if ai_txt else "未提供"))
+    if robots is None:
+        # 没读过 robots 就断言「未声明 Sitemap」是编造,标 unknown
+        checks.append(_chk_unknown("B4", "sitemap 在 robots 中声明", 3, "未提供 robots,无法判定"))
+    else:
+        sm = bool(robots.get("sitemaps"))
+        checks.append(_chk("B4", "sitemap 在 robots 中声明", 3, 3 if sm else 0,
+                           "" if sm else "robots 未声明 Sitemap"))
     return {"key": "B", "name": "AI 发现文件", "weight": 16, "checks": checks}
 
 
@@ -324,7 +370,11 @@ def _dim_D(doc):
     checks.append(_chk("D4", "信息密度/篇幅(800~1500词最优)", 4, d4,
                        n4 or ("%d 词" % wc)))
 
-    ext_links = doc.external_links()
+    # 同站绝对链接(WordPress 等 CMS 默认渲染形态)不算外部引用:
+    # 本站域名从 canonical/og:url 推,推不出时保持原行为并在 note 说明
+    own = _own_host(doc)
+    ext_links = [lk for lk in doc.external_links()
+                 if own is None or _url_host(lk.get("href", "")) != own]
     ext = len(ext_links)
     auth = sum(1 for lk in ext_links if _is_auth_link(lk.get("href", "")))
     if nums >= 3 and ext >= 1:
@@ -334,6 +384,8 @@ def _dim_D(doc):
     else:
         d5 = 0
     note = "数字 %d 个,外链 %d 个(权威外链 %d 个)" % (nums, ext, auth)
+    if ext and own is None:
+        note += ";缺 canonical/og:url,未按本站域名过滤同站链接"
     if ext and auth == 0:
         note += ";出站引用质量低,优先引权威源(维基/官方/政府/学术)"
     checks.append(_chk("D5", "统计数据+外部引用", 4, d5, note))
@@ -406,10 +458,21 @@ def _dim_F(doc, jl):
         f3 = 0
     checks.append(_chk("F3", "实体一致性(品牌名跨页一致)", 3, f3))
 
-    iso_date = any(re.search(r"\d{4}-\d{2}-\d{2}", t.get("datetime") or "") for t in doc.time_attrs)
-    iso_in_jsonld = any(re.search(r'"date(Modified|Published)"\s*:\s*"\d{4}-\d{2}-\d{2}', b)
-                        for b in doc.jsonld_blocks)
-    recent_year = bool(re.search(r"\b(2024|2025|2026|2027)\b", doc.text))
+    # 新鲜度要看年份新旧:2018 年的 time 标签不能拿满分(承诺是 dateModified 近期)。
+    # 年份匹配用数字边界断言,不用 \b:Python re 里汉字属 \w,「更新于2026年」里
+    # 2026 前后无词边界,\b 永远匹配不上,中文页新鲜度会系统性丢分
+    _cur = _datetime.date.today().year
+    _recent = tuple(str(_cur - i) for i in range(0, 3))  # 今年及前两年算近期
+
+    def _year_recent(s):
+        m = re.findall(r"(?<![0-9])(\d{4})(?![0-9])", s or "")
+        return any(y in _recent for y in m)
+
+    iso_date = any(_year_recent(t.get("datetime") or "") for t in doc.time_attrs)
+    iso_in_jsonld = any(
+        _year_recent(m.group(1)) for b in doc.jsonld_blocks
+        for m in re.finditer(r'"date(?:Modified|Published)"\s*:\s*"([^"]+)"', b))
+    recent_year = _year_recent(doc.text)
     if iso_date or iso_in_jsonld:
         f4 = 3
     elif recent_year:
@@ -474,8 +537,10 @@ def assess_onpage(doc):
     }
 
 
-def score_document(doc, robots_text=None, llms_text=None, llms_full=False,
-                   ai_txt=False, market="auto"):
+def score_document(doc, robots_text=None, llms_text=None, llms_full=None,
+                   ai_txt=None, market="auto"):
+    # llms_full/ai_txt 默认 None=未检测(对应 check 标 unknown 剔出分母),
+    # 显式传 False 才表示「检测过且不存在」记 fail
     if market == "auto":
         market = "cn" if doc.is_cjk else "global"
 
@@ -495,8 +560,9 @@ def score_document(doc, robots_text=None, llms_text=None, llms_full=False,
     included_weight = 0
     earned = 0.0
     for d in dims:
-        dw = sum(c["weight"] for c in d["checks"])
-        de = sum(c["earned"] for c in d["checks"])
+        # unknown(输入缺失)的 check 剔出分母:缺输入不当硬伤扣分
+        dw = sum(c["weight"] for c in d["checks"] if c["status"] != "unknown")
+        de = sum(c["earned"] for c in d["checks"] if c["status"] != "unknown")
         d["weight_evaluated"] = dw
         d["earned"] = round(de, 2)
         included_weight += dw
@@ -557,7 +623,8 @@ def _weakest(dims):
     rows = []
     for d in dims:
         for c in d["checks"]:
-            if c["weight"] > 0:
+            # unknown 是没测,不是最弱项,不进待补清单
+            if c["weight"] > 0 and c["status"] != "unknown":
                 rows.append((c["earned"] / c["weight"], d["key"], c))
     rows.sort(key=lambda r: r[0])
     return [{"dim": k, "id": c["id"], "name": c["name"],
