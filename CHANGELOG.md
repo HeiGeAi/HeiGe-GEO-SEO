@@ -1,5 +1,46 @@
 # Changelog
 
+## v1.11.0 (2026-07-06)
+
+全项目功能审查修复版。审查方式:31 个命令用真实资产(heigeai.com 663KB 页面 + robots + llms + 真实采集 records)全量冒烟,再按 7 个模块群派多专家实跑审查(每条 finding 必须附可复现命令),对抗验证后确认 54 条真问题(45 major + 9 minor),全部修复并带回归测试。测试 279 → 428。
+
+### 评分核心(scoring / htmldoc)
+
+- **robots 解析两处系统性误判**:Crawl-delay/Host 等指令不结组,「bingbot 限速」后的下一组 Disallow 会错挂到 bingbot 头上,触发错误 veto;UTF-8 BOM(Windows 记事本常见)让首行 User-agent 解析失败,同一文件评分从 45 反转到 27。均修复。
+- **F4 新鲜度方向反了**:2018 年的旧 time 标签拿满分,「更新于2026年」的中文页拿零分(汉字属 \\w,\\b 边界失效)。改按年份新旧判分 + 数字边界断言,年份基于当前日期滚动。
+- **断句把小数点/域名当句界**:「3.5倍」拆成两句,D1/D3/E4 三项指标被假句子扭曲,数据密集内容(GEO 最鼓励的写法)测得最不准。修复。
+- **内联 SVG 的 title 污染文档标题**;**GBK/GB2312 中文页被静默读成乱码判 6 分**(补编码自动探测:utf-8 剥 BOM 严格 → gb18030 → 宽松兜底)。
+- **unknown 承诺兑现**:缺 robots/llms 输入时对应 check 标 unknown 并从分母剔除,不再记 fail 且编造「robots 未声明 Sitemap」这类没检测过的理由。
+- D5 不再把指向本站的绝对 URL 当外部引用;空 ld+json 块不再让 C4 整项归零。
+
+### 度量层(sov / measure)
+
+- 缺失语境识别补齐:带空格/英文品牌的「找不到 X」、「不存在/市面上没有」全覆盖,「找不到X更好的替代品」最高级夸奖不再误杀。
+- _URL_RE 不再把 URL 后紧跟的中文吞进域名(owned 曾错记 earned);带端口 URL 正确解析。
+- 无竞品时 competitive_tier 不再恒报「领导者」,改「无竞品数据,不评档」。
+- turn_retention 支持 conversation 字段与顺序重建对话,自然多轮(每轮问句不同)不再恒 0% 留存。
+- sentiment 三层修:ASCII 情感词加词形边界(desktop 不再命中 top)、英文否定翻转(not recommend)、「没问题/无风险」否定习语白名单。
+
+### 推荐与意图(platform_recommend / sourcing / intent)
+
+- reverse 反查修三处:大小写不敏感(小写 reddit 不再返回 0 引擎)、覆盖内容类型平台(小红书/CSDN 正反口径一致)、英文只整词匹配("in" 不再误命中 LinkedIn)并回显命中平台。
+- content_type 追加平台与目标引擎零交集时跳过,不再把非目标引擎灌进推荐表、在下游伪造「跨引擎共识」。
+- 命脉平台按引擎原生最高权重强制进 P0,content_type 加分不再把命脉挤出首发档(全部 17 引擎命脉必在 P0 有断言守着)。
+- 未识别引擎显式提示(recommend 与 sourcing 口径一致);同分平台排序稳定;rationale 权重记账自洽。
+- intent:英文信号改 ASCII 边界断言(「豆包vs元宝」不再误判 informational)、中文互为子串信号按最长匹配去重、「怎么买/哪里买」正确判交易、「面试用」不误判交易、跨意图更长信号优先。
+
+### 内容工程与编排(content_engineering / playbook)
+
+- _query_coverage 英文 gram 加边界(AI 不再命中 training);_DATE_ANY 不再把「5000-8000 元」当日期吃掉;引语严格同款配对 + 去重(未闭合引号不再跨段吞文、同一引语复制 20 遍刷不动分)。
+- compare 差距排序改加权欠分(权重 14 的统计数据不再排在权重 4 的跨域贡献后);playbook 把解析后的市场传给 sourcing(中文页 auto 时层 2 收录动作不再为空、手册不再双市场标签)。
+
+### 审计与生成(diagnose / agent_readiness / cannibalize / internal_links / factcheck / generators / attribution / CLI / validate)
+
+- diagnose 答案块分句认半角句号(英文页不再必 fail);agentready CTA 匹配大小写不敏感(Sign Up 能识别)。
+- cannibalize 剥「页名 - 品牌名」后缀(无关页不再误判蚕食)、中文关键词滑动 n-gram(换词序不再漏检);internal_links 处理协议相对链接与相对路径解析(全相对链接站不再 100% 孤儿)。
+- factcheck wrong 是 truth 子串时不再把真相判成冲突;gen_sitemap/gen_feed_xml 补 XML 转义(带 & 参数的 URL 不再产出非法 XML);attribution 解析失败的日志行不再整行当 UA 扫。
+- playbook --html 与 --json 同用时状态行改走 stderr(stdout 纯 JSON 可管道);validate.py 补 sha256 校验(适配包内容被改能查出)。
+
 ## v1.10.0 (2026-06-30)
 
 真实采集闭环 dogfood 发现并修复的监测有效性硬伤。用 playwright 驱动秘塔 AI 搜索真问了一轮黑哥AI 的 buyer prompt,喂回 measure 时发现:秘塔答「没有找到明确叫做黑哥AI的平台」,sov 却因答案里出现「黑哥AI」这串字就判成被提及,误报覆盖率 33%。

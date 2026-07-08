@@ -20,11 +20,12 @@ _SIGNALS = {
     "commercial": [
         "最好", "最佳", "推荐", "对比", "哪个好", "哪家", "评测", "排行", "排名",
         "替代", "值得", "vs", "best", "top", "review", "compare", "comparison",
-        "alternative", "which", "vs.",
+        "alternative", "which",
     ],
     "transactional": [
         "购买", "价格", "多少钱", "下单", "优惠", "折扣", "试用", "注册", "下载",
-        "报价", "订购", "buy", "price", "cost", "discount", "trial", "sign up",
+        "报价", "订购", "怎么买", "哪里买", "在哪买", "怎么购买",
+        "buy", "price", "cost", "discount", "trial", "sign up",
         "signup", "download", "order", "coupon", "pricing", "purchase",
     ],
     "navigational": [
@@ -58,12 +59,55 @@ _PLAYBOOK = {
 }
 
 
+# 中文短信号的左邻构词字排除表:「面试用/考试用/测试用/调试用/笔试用」里的「试用」
+# 是「X试 + 用」的偶然相邻,不是交易信号;命中位置左邻是这些字时该次命中不算。
+_CN_LEFT_BLOCK = {"试用": "面考测调笔"}
+
+
 def _match(sig, q):
-    """英文信号用词边界(避免 whichever→which、reorder→order),中文用子串。"""
+    """英文信号用 ASCII 级边界(避免 whichever→which、reorder→order),中文用子串。
+
+    不用 \\b:Python re 里汉字属 \\w,「豆包vs元宝」这类汉字紧贴英文的常见中文查询
+    在交界处没有词边界,\\bvs\\b 匹配不上。改用 ASCII 前后断言,汉字相邻即视为边界。
+    中文侧对 _CN_LEFT_BLOCK 里的易误命中短信号做左邻字符检查。
+    """
     sl = sig.lower()
     if re.match(r"^[a-z0-9 .'-]+$", sl):
-        return re.search(r"\b" + re.escape(sl) + r"\b", q) is not None
-    return sl in q
+        return re.search(r"(?<![A-Za-z0-9])" + re.escape(sl) + r"(?![A-Za-z0-9])",
+                         q) is not None
+    block = _CN_LEFT_BLOCK.get(sl)
+    if block is None:
+        return sl in q
+    start = 0
+    while True:
+        i = q.find(sl, start)
+        if i < 0:
+            return False
+        if i == 0 or q[i - 1] not in block:
+            return True
+        start = i + 1
+
+
+def _dedup_longest(matched):
+    """同一意图内命中信号去重:信号 A 是另一命中信号 B 的子串时只留最长的,
+    避免「怎么样」同时记「怎么」+「怎么样」两分把置信度虚抬到 high。"""
+    kept = []
+    for s in sorted(matched, key=len, reverse=True):
+        if not any(s in k for k in kept):
+            kept.append(s)
+    return kept
+
+
+def _suppress_cross_intent(hits):
+    """跨意图去重:命中信号是另一意图更长命中信号的子串时移除。
+    「咖啡机怎么买」里 informational 的「怎么」只是 transactional「怎么买」的
+    左半截,更长更具体的信号才代表真实意图,短信号不该再给别的意图计分。"""
+    all_matched = [s for lst in hits.values() for s in lst]
+    return {
+        name: [s for s in lst
+               if not any(s != k and s in k for k in all_matched)]
+        for name, lst in hits.items()
+    }
 
 
 def classify(query, lang="auto"):
@@ -72,9 +116,10 @@ def classify(query, lang="auto"):
     scores = {}
     hits = {}
     for intent, sigs in _SIGNALS.items():
-        matched = [s for s in sigs if _match(s, q)]
+        hits[intent] = _dedup_longest([s for s in sigs if _match(s, q)])
+    hits = _suppress_cross_intent(hits)
+    for intent, matched in hits.items():
         scores[intent] = len(matched)
-        hits[intent] = matched
     # 取最高分;并列时按 商业 > 交易 > 信息 > 导航 的商业价值优先
     order = ["commercial", "transactional", "informational", "navigational"]
     best = max(order, key=lambda i: (scores[i], -order.index(i)))

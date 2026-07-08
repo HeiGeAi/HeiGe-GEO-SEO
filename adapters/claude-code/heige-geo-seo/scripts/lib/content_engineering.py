@@ -36,7 +36,8 @@ _RAW_TOTAL = sum(w for _, _, _, w, _ in _ELEMENTS)  # 98:公开课原始口径
 _LOW_CONFIDENCE = {"semantic"}
 
 # 真引语:成对引号包裹的长句,或"据 X 报告/研究/显示/指出/称"(不含'数据',太常见)
-_QUOTE_MARK = re.compile(r"[“「『][^”」』]{6,}?[”」』]"
+# 引号严格同款配对且限单段(排除换行)、限长 160,防未闭合引号跨段吞正文制造假引语
+_QUOTE_MARK = re.compile(r"“[^“”\n]{6,160}?”|「[^「」\n]{6,160}?」|『[^『』\n]{6,160}?』"
                          r"|据[^,，。；\s]{2,16}?(?:报告|研究|白皮书|论文|显示|指出|表示|称)")
 # 强出处词(给可引用性真实信号下限)
 _STRONG_SRC = re.compile(r"来源|出处|引自|引用自|据.{0,12}?(?:报告|研究|白皮书|论文)|参考文献")
@@ -44,7 +45,8 @@ _STRONG_SRC = re.compile(r"来源|出处|引自|引用自|据.{0,12}?(?:报告|�
 _SRC_HINT = re.compile(r"来源|出处|引自|参考|根据|依据|链接|http", re.IGNORECASE)
 _NUM = re.compile(r"\d+(?:[.,]\d+)?%?")
 # 日期:覆盖 -、/、年月 三种分隔符(非捕获,re.sub 不残留)
-_DATE_ANY = re.compile(r"\d{4}[-/年]\d{1,2}(?:[-/月]\d{1,2})?日?")
+# 年份限定 19xx/20xx 且月/日后加数字边界,防把 5000-8000 这类数字区间当日期吃掉
+_DATE_ANY = re.compile(r"(?<!\d)(?:19|20)\d{2}[-/年]\d{1,2}(?!\d)(?:[-/月]\d{1,2}(?!\d))?日?")
 # 版本号:带 v 的两段及以上,或裸三段及以上(裸两段如 87.3 当小数统计,不剔)
 _VERSION = re.compile(r"\bv\d+(?:\.\d+)+\b|\b\d+\.\d+\.\d+\b", re.IGNORECASE)
 _FAQ = re.compile(r"(常见问题|FAQ|Q[:：&]|问[:：].{0,30}答[:：]|什么是|如何|怎么|为什么)", re.IGNORECASE)
@@ -61,6 +63,11 @@ _EN_STOP = {"THE", "OUR", "AND", "FOR", "WITH", "FAQ", "CTO", "CEO", "API", "GPT
 
 def _clamp(x):
     return max(0.0, min(1.0, x))
+
+
+def _norm_ws(s):
+    """规整空白:源码里的换行/缩进折叠成单空格,标题与段落比对前先过这一层。"""
+    return re.sub(r"\s+", " ", s).strip()
 
 
 def _strip_dates(s):
@@ -96,8 +103,12 @@ def _query_coverage(doc_text, queries):
         grams = _query_grams([q])
         if not grams:
             continue
-        # 英文 gram 已小写,对小写正文匹配;CJK gram 对原文匹配(CJK 无大小写)
-        hit = sum(1 for g in grams if g in (low if g.isascii() else doc_text))
+        # 英文 gram 已小写,对小写正文按 ASCII 边界匹配(防 ai 命中 training 这类裸子串误报);
+        # CJK gram 对原文子串匹配(CJK 无大小写、无词边界)
+        hit = sum(
+            1 for g in grams
+            if (re.search(r"(?<![a-z0-9])%s(?![a-z0-9])" % re.escape(g), low)
+                if g.isascii() else (g in doc_text)))
         acc += hit / len(grams)
         total += 1
     return (acc / total) if total else None
@@ -115,7 +126,8 @@ def _score_elements(doc, queries=None):
     s = {}
 
     # 权威原文引语:真引语/可信出处句占核心句比例(噪声词不计)
-    quotes = len(_QUOTE_MARK.findall(text))
+    # 同一引语重复出现只计一次,防证言轮播/复制粘贴刷 16% 权重要素
+    quotes = len(set(_QUOTE_MARK.findall(text)))
     s["authority_quote"] = _clamp(quotes / max(3, n_sent * 0.15))
 
     # 统计数据:带真数字段落占比 × 真数字密度(先 strip 日期/版本号)
@@ -257,9 +269,18 @@ def annotate(doc, queries=None):
     并指出该段缺的、价值最高的证据引用层要素,给逐段改写指引。
     """
     paras = [p for p in doc.text.split("\n") if p.strip()]
-    heading_texts = set(t for _, t in doc.headings)
+    # 标题规整空白后入集合;跨行标题会被 doc.text 按行切成多个段,逐行也入集合,
+    # 保证 pretty-printed HTML 里的多行标题每行都能识别为标题
+    heading_texts = set()
+    for _, t in doc.headings:
+        heading_texts.add(_norm_ws(t))
+        for ln in t.split("\n"):
+            ln = _norm_ws(ln)
+            if ln:
+                heading_texts.add(ln)
     rows = []
     for i, p in enumerate(paras):
+        is_heading = _norm_ws(p) in heading_texts
         present = []
         if _QUOTE_MARK.search(p):
             present.append("权威原文引语")
@@ -267,7 +288,7 @@ def annotate(doc, queries=None):
             present.append("统计数据")
         if _STRONG_SRC.search(p) or "http" in p.lower():
             present.append("可引用性")
-        if p in heading_texts:
+        if is_heading:
             present.append("结构规范性")
         if _FAQ.search(p):
             present.append("FAQ/需求匹配")
@@ -285,7 +306,7 @@ def annotate(doc, queries=None):
             "index": i,
             "preview": p[:60] + ("…" if len(p) > 60 else ""),
             "elements_present": present,
-            "is_heading": p in heading_texts,
+            "is_heading": is_heading,
             "tip": ";".join(tips) if tips else "证据要素较全,保持",
         })
     covered = set()

@@ -124,7 +124,9 @@ def generate(doc, brand, category, engines=None, roots=None, content_type=None,
     ann = ce.annotate(doc, queries=queries)
     diag = diaglib.diagnose(doc, market=eff_market)
     roots = roots or ([category] if category else [])
-    src = sourcinglib.plan(category, roots, engines, content_type=content_type, market=market)
+    # 传解析后的 eff_market(auto 已按页面语言落定),保证一份手册单一市场口径,
+    # 中文页不带 --engine 时层 2 收录前置动作(百度推送/ICP/site: 自查)不再为空
+    src = sourcinglib.plan(category, roots, engines, content_type=content_type, market=eff_market)
     instr = instrlib.compile_instructions(sc, target_engine=(engines[0] if engines else None))
     prompt_rows = promptlib.generate(brand, category, competitors=competitors,
                                       limit=20) if (brand and category) else []
@@ -230,14 +232,21 @@ def compare(pages, brand=None, queries=None, market="auto"):
     you_rank = ranked.index(you) + 1
     # 你落后的要素:只跟综合分不低于你的竞品比,别拿垃圾页在 fluency/readability 上的虚高单要素当差距
     strong_comps = [c for c in competitors if c["combined"] >= you["combined"]]
+    # 差距排序按 gap×权重(加权欠分),与 cescore weakest 口径统一:
+    # 裸分差会把权重 4 的跨域贡献排在权重 14 的统计数据前面,与"先补证据/结构要素"的裁决矛盾
+    weight_map = {k: w for k, _, _, w, _ in ce._ELEMENTS}
     gaps = []
     for key, name in you["element_meta"].items():
         comp_max = max((c["elements"].get(key, 0) for c in strong_comps), default=0)
         if comp_max > you["elements"].get(key, 0) + 0.05:
+            gap = comp_max - you["elements"].get(key, 0)
+            weight = weight_map.get(key, 0)
             gaps.append({"element": name, "your": round(you["elements"].get(key, 0), 2),
                          "best_competitor": round(comp_max, 2),
-                         "gap": round(comp_max - you["elements"].get(key, 0), 2)})
-    gaps.sort(key=lambda g: -g["gap"])
+                         "gap": round(gap, 2),
+                         "weight": weight,
+                         "weighted_gap": round(gap * weight, 2)})
+    gaps.sort(key=lambda g: -g["weighted_gap"])
     second = max((c["combined"] for c in competitors), default=None)
     if not competitors:
         verdict = "只给了你自己,没有竞品可比。"
@@ -277,10 +286,11 @@ def render_compare(c):
             r["content_score"], r["evidence_layer_raw"]))
     o.append("")
     if c["gaps"]:
-        o.append("## 你落后的要素(差距最大优先,补真实素材)")
+        o.append("## 你落后的要素(加权欠分最大优先,补真实素材)")
         for g in c["gaps"]:
-            o.append("- %s:你 %s vs 竞品最佳 %s(差 %s)" % (
-                g["element"], g["your"], g["best_competitor"], g["gap"]))
+            o.append("- %s:你 %s vs 竞品最佳 %s(差 %s,权重 %s,加权欠分 %s)" % (
+                g["element"], g["your"], g["best_competitor"], g["gap"],
+                g.get("weight", 0), g.get("weighted_gap", g["gap"])))
     else:
         o.append("各要素你都不落后,守住即可。")
     o.append("")

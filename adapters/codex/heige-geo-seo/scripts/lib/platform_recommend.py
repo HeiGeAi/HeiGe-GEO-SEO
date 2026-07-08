@@ -14,6 +14,8 @@
 - 别押单平台:4+ 平台一致覆盖比单一自有博文抗波动约 70 倍,82-94% 引用来自 earned media。
 """
 
+import re
+
 # weight: 3=high / 2=med / 1=low
 # 每条 (平台, 权重, 来源, 理由)
 _ENGINE_PLATFORMS = {
@@ -160,6 +162,17 @@ _ENGINE_ALIAS = {
     "duckduckgo": "duckduckgo", "ddg": "duckduckgo", "duckassist": "duckduckgo",
 }
 
+# 平台稳定排序位:同分同引擎数时按权重表/内容类型表的策展顺序定名次
+# (表内顺序本身就是信号强弱的策展,如 Wikipedia 是 chatgpt 命脉排首位),
+# 与 --engine 传入顺序无关;表外平台落到末位按名称兜底
+_PLATFORM_RANK = {}
+for _plats in _ENGINE_PLATFORMS.values():
+    for _plat, _w, _src, _why in _plats:
+        _PLATFORM_RANK.setdefault(_plat, len(_PLATFORM_RANK))
+for _entries in _CONTENT_TYPE.values():
+    for _plat, _engs, _hint in _entries:
+        _PLATFORM_RANK.setdefault(_plat, len(_PLATFORM_RANK))
+
 CN_ENGINES = ["豆包", "元宝", "deepseek", "kimi", "文心", "通义"]
 OVERSEAS_ENGINES = ["chatgpt", "gemini", "claude", "perplexity", "copilot",
                     "grok", "metaai", "you", "brave", "mistral", "duckduckgo"]
@@ -188,6 +201,12 @@ def _resolve(engines):
     return res
 
 
+def unrecognized(target_engines):
+    """解析后仍不在国内/海外引擎表里的输入(拼错/未收录),给上游提示用。"""
+    return [e for e in _resolve(target_engines)
+            if e not in CN_ENGINES and not _is_overseas(e)]
+
+
 def recommend(target_engines, content_type=None, top=None):
     """给目标引擎,推荐发哪些平台(按加权得分排序)。"""
     engines = _resolve(target_engines)
@@ -200,11 +219,17 @@ def recommend(target_engines, content_type=None, top=None):
             rec["sources"].add(src)
     ct = (content_type or "").lower()
     for plat, eng_list, hint in _CONTENT_TYPE.get(ct, []):
-        relevant = [e for e in eng_list if e in engines] or eng_list
+        # 只在追加平台真的喂目标引擎时才加分;零交集直接跳过,
+        # 别把非目标引擎灌进 feeds 造成推荐表自相矛盾、还在下游伪造"跨引擎共识"
+        relevant = [e for e in eng_list if e in engines]
+        if not relevant:
+            continue
         rec = agg.setdefault(plat, {"score": 0, "feeds": [], "sources": set()})
-        rec["score"] += 2
         rec["sources"].add("内容类型适配:%s" % hint)
+        # 与基础权重同口径:每个命中的目标引擎各计 2 分并各记一条 rationale,
+        # 保证 score == sum(rationale.weight) 恒成立,下游按 rationale 对账不掉链
         for e in relevant:
+            rec["score"] += 2
             rec["feeds"].append({"engine": e, "weight": 2, "why": hint})
 
     rows = []
@@ -216,7 +241,10 @@ def recommend(target_engines, content_type=None, top=None):
             "rationale": rec["feeds"],
             "sources": sorted(rec["sources"]),
         })
-    rows.sort(key=lambda r: (r["score"], len(r["feeds_engines"])), reverse=True)
+    # 稳定次键:同分同引擎数的平台按策展位次排,不随 --engine 传入顺序漂移
+    rows.sort(key=lambda r: (-r["score"], -len(r["feeds_engines"]),
+                             _PLATFORM_RANK.get(r["platform"], len(_PLATFORM_RANK)),
+                             r["platform"]))
     if top:
         rows = rows[:top]
 
@@ -226,28 +254,66 @@ def recommend(target_engines, content_type=None, top=None):
     if has_overseas:
         note += ("⚠️海外引用每月 40-60% 翻盘,数字仅方向性;引擎间源池低重叠须按引擎差异化;"
                  "别押单平台,4+ 平台一致覆盖抗波动约 70 倍,优先 earned media(第三方)。")
+    unknown = [e for e in engines if e not in CN_ENGINES and not _is_overseas(e)]
     return {"target_engines": engines, "content_type": content_type or None,
+            "unrecognized_engines": unknown or None,
             "recommendations": rows, "note": note}
 
 
+def _platform_match(q, plat):
+    """反查平台名匹配:大小写不敏感。英文只做全等或分段整词(X/Twitter 输 x 或
+    twitter 都命中),不做子串,防 "in" 命中 LinkedIn;中文两字起可子串(知乎/小红书)。"""
+    ql = q.casefold()
+    pl = plat.casefold()
+    if ql == pl:
+        return True
+    segs = [s for s in re.split(r"[/+\s()]+", pl) if s]
+    if ql in segs:
+        return True
+    if len(ql) >= 2 and not ql.isascii() and ql in pl:
+        return True
+    return False
+
+
 def reverse(platform):
-    """反向:这个平台能喂哪些 AI 引擎。"""
+    """反向:这个平台能喂哪些 AI 引擎(含内容类型适配的平台,正反口径一致)。"""
     feeds = []
+    matched = set()
     q = (platform or "").strip()
     for eng, plats in _ENGINE_PLATFORMS.items():
         for plat, w, src, why in plats:
-            if q == plat or (len(q) >= 2 and q in plat):
-                feeds.append({"engine": eng, "weight": w, "source": src, "why": why,
+            if _platform_match(q, plat):
+                matched.add(plat)
+                feeds.append({"engine": eng, "platform": plat, "weight": w,
+                              "source": src, "why": why,
                               "region": "海外" if _is_overseas(eng) else "国内"})
+    # 内容类型适配的平台也要能反查(正向 recommend 推荐了小红书,反查不能答 0)
+    for ct, entries in _CONTENT_TYPE.items():
+        for plat, eng_list, hint in entries:
+            if _platform_match(q, plat):
+                matched.add(plat)
+                for e in eng_list:
+                    feeds.append({"engine": e, "platform": plat, "weight": 2,
+                                  "source": "内容类型适配:%s" % ct,
+                                  "why": "%s(仅 %s 类内容下成立)" % (hint, ct),
+                                  "region": "海外" if _is_overseas(e) else "国内"})
     feeds.sort(key=lambda f: f["weight"], reverse=True)
-    return {"platform": platform, "feeds_engines": feeds,
-            "engine_count": len({f["engine"] for f in feeds})}
+    out = {"platform": platform, "matched_platforms": sorted(matched),
+           "feeds_engines": feeds,
+           "engine_count": len({f["engine"] for f in feeds})}
+    if not feeds:
+        out["note"] = "未收录该平台,检查拼写或用完整平台名(如 Reddit/知乎/小红书)。"
+    return out
 
 
 def render_markdown(result):
     out = ["# 平台发布推荐", ""]
     out.append("目标引擎: %s%s" % ("、".join(result["target_engines"]),
                (" | 内容类型: " + result["content_type"]) if result["content_type"] else ""))
+    if result.get("unrecognized_engines"):
+        out.append("")
+        out.append("⚠️ 未识别的引擎(权重表无数据,请核对拼写): %s" %
+                   "、".join(result["unrecognized_engines"]))
     out.append("")
     out.append("> " + result["note"])
     out.append("")

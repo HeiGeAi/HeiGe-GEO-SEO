@@ -16,9 +16,19 @@ _ANSWER_WORDS_MAX = 90  # 中文按字符近似,放宽到 30~90
 
 
 def _first_block_len(doc):
-    text = doc.text.replace("\n", " ").strip()
-    # take up to first sentence boundary cluster
-    seg = re.split(r"[。!?!?]", text, 1)
+    text = re.sub(r"\s+", " ", doc.text).strip()
+    # 跳过首个 h1 之前的文本:doc.text 开头通常是 nav/顶部 UI 提示,
+    # 拿导航文案当「答案块」量出来的是假 pass
+    h1 = next((t for lvl, t in doc.headings if lvl == 1), None)
+    if h1:
+        h1_norm = re.sub(r"\s+", " ", h1).strip()
+        idx = text.find(h1_norm)
+        if idx >= 0:
+            text = text[idx + len(h1_norm):].strip()
+    # 半角句点算句界但不拆小数/域名:句点后接空白或串尾才算句尾(域名 heigeai.com
+    # 的点后面是字母、小数 3.5 前面是数字,都不切)。不补 . 的话英文页首句
+    # 以 . 结尾切不开,「首块」变全文而必判 fail
+    seg = re.split(r"[。！？!?]|(?<!\d)\.(?=\s|$)", text, maxsplit=1)
     head = seg[0] if seg else text
     cjk = len(re.findall(r"[一-鿿]", head))
     latin = len(re.findall(r"[A-Za-z][A-Za-z'-]*", head))

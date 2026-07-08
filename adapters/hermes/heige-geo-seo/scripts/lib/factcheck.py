@@ -16,6 +16,19 @@ def _aliases(brand, aliases):
     return [a for a in out if a]
 
 
+def _covered_by_truth(ans, truth, wi, we):
+    """wrong 命中区间 [wi,we) 若落在 truth 的某次完整出现里,说明 AI 说的其实是真相
+    (如 truth='199元/月' 包含 wrong='99元/月'),不算冲突。"""
+    if not truth or len(truth) < (we - wi):
+        return False
+    i = ans.find(truth, max(0, wi - len(truth)))
+    while 0 <= i <= wi:
+        if i + len(truth) >= we:
+            return True
+        i = ans.find(truth, i + 1)
+    return False
+
+
 def check(records, brand, facts, aliases=None):
     """扫描每条回答,找提到品牌且出现"错误说法"的,标为待纠正。"""
     brand_names = _aliases(brand, aliases)
@@ -39,12 +52,14 @@ def check(records, brand, facts, aliases=None):
             for wrong in f.get("wrong", []):
                 if not wrong:
                     continue
+                truth = f.get("truth", "")
                 wi = ans.find(wrong)
                 near = False
                 while wi >= 0:
                     we = wi + len(wrong)
-                    if any(not (we < bs - window or wi > be + window)
-                           for bs, be in brand_spans):
+                    if (not _covered_by_truth(ans, truth, wi, we)
+                            and any(not (we < bs - window or wi > be + window)
+                                    for bs, be in brand_spans)):
                         near = True
                         break
                     wi = ans.find(wrong, wi + 1)

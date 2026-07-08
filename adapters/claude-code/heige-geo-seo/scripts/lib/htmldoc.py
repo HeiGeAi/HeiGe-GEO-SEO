@@ -17,6 +17,8 @@ class _DocParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.title_parts = []
         self._in_title = False
+        self._svg_depth = 0       # 内联 SVG 的 <title> 是无障碍标题,不是文档标题
+        self._title_done = False  # 只取第一个文档级 <title>
 
         self.meta = {}            # name/property -> content
         self.canonical = None
@@ -69,7 +71,10 @@ class _DocParser(HTMLParser):
             if lang:
                 self.lang = lang
 
-        if tag == "title":
+        if tag == "svg":
+            self._svg_depth += 1
+
+        if tag == "title" and self._svg_depth == 0 and not self._title_done:
             self._in_title = True
 
         if tag == "meta":
@@ -119,8 +124,12 @@ class _DocParser(HTMLParser):
         if tag in _SKIP_TEXT_TAGS and self._skip_depth > 0:
             self._skip_depth -= 1
 
-        if tag == "title":
+        if tag == "svg" and self._svg_depth > 0:
+            self._svg_depth -= 1
+
+        if tag == "title" and self._in_title:
             self._in_title = False
+            self._title_done = True
 
         if tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
             text = "".join(self._heading_parts).strip()
@@ -216,7 +225,9 @@ class HtmlDoc:
 
     def sentences(self):
         text = self.text.replace("\n", " ")
-        parts = re.split(r"[。！？!?\.]+", text)
+        # 半角句点后紧跟字母数字时不算句界:「3.5倍」「heigeai.com」不拆句
+        # (否则 D1/D3/E4 被假句子扭曲);句点后是空格/行尾才是英文句尾,照拆
+        parts = re.split(r"[。！？!?]+|\.(?![0-9A-Za-z])", text)
         return [s.strip() for s in parts if s.strip()]
 
     def avg_sentence_words(self):
@@ -245,9 +256,25 @@ class HtmlDoc:
         return len(re.findall(r"\d+(?:[.,]\d+)?%?", text))
 
 
+def read_text(path):
+    """读文本文件,自动探测编码:utf-8(剥 BOM)严格 → gb18030 严格 → utf-8 宽松兜底。
+
+    国内存量 GBK/GB2312 站不少,硬编码 utf-8+replace 会把中文页静默读成替换符:
+    is_cjk 变 False、market 误判 global、总分 6 分,给出的是错误结论而非报错。
+    gb18030 是 GBK/GB2312 的超集。Windows 记事本存的 UTF-8 常带 BOM,用 utf-8-sig 剥。
+    """
+    with open(path, "rb") as fh:
+        raw = fh.read()
+    for enc in ("utf-8-sig", "gb18030"):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
 def from_file(path):
-    with open(path, "r", encoding="utf-8", errors="replace") as fh:
-        return HtmlDoc(fh.read())
+    return HtmlDoc(read_text(path))
 
 
 def from_string(html):

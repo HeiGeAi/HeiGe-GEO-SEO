@@ -17,6 +17,44 @@ import re
 _KEY_ACTIONS = ["下单", "购买", "注册", "预约", "留资", "提交", "checkout",
                 "buy", "sign up", "signup", "register", "book", "subscribe"]
 
+# 可执行动作节点:button/a 的内文 + input 的 value 属性
+_ACTION_NODE_RE = re.compile(
+    r"<button\b[^>]*>(.*?)</button>|<a\b[^>]*>(.*?)</a>",
+    re.IGNORECASE | re.DOTALL)
+_INPUT_VALUE_RE = re.compile(
+    r"""<input\b[^>]*\bvalue\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>"']+))""",
+    re.IGNORECASE)
+_TAG_STRIP_RE = re.compile(r"<[^>]+>")
+
+
+def _action_texts(raw):
+    """收集可执行动作节点(button/a 内文、input value)的可见文案。
+
+    只扫这些节点,不扫整个 raw:图片文件名(bulk-buy-poster.jpg)、alt、JSON 数据里
+    都可能含关键词,整页裸扫会把零动作页误判成「关键动作可识别」;而 CTA 藏在
+    div+JS 里本就是 agent 识别不了的形态,不该给分。"""
+    texts = []
+    for m in _ACTION_NODE_RE.finditer(raw):
+        inner = m.group(1) or m.group(2) or ""
+        texts.append(_TAG_STRIP_RE.sub(" ", inner))
+    for m in _INPUT_VALUE_RE.finditer(raw):
+        texts.append(m.group(1) or m.group(2) or m.group(3) or "")
+    return " \n ".join(texts)
+
+
+def _has_key_action(raw):
+    """英文词大小写不敏感 + ASCII 边界(Buy Now 能识别,facebook 不误中 book);
+    中文词子串匹配。"""
+    text = _action_texts(raw)
+    low = text.casefold()
+    for a in _KEY_ACTIONS:
+        if a.isascii():
+            if re.search(r"(?<![a-z0-9])" + re.escape(a) + r"(?![a-z0-9])", low):
+                return True
+        elif a in text:
+            return True
+    return False
+
 
 def _antipatterns(raw):
     """agent-hostile 反模式:这些今天就会让真实 agent(computer-use)任务失败。"""
@@ -75,7 +113,7 @@ def audit(doc):
     add("有 ARIA 标签/角色", has_aria, 10,
         "给交互元素加 aria-label / role,提升 agent 与无障碍可读性")
 
-    action_found = any(a in raw for a in _KEY_ACTIONS)
+    action_found = _has_key_action(raw)
     add("关键动作可被机器识别", action_found, 20,
         "把下单/注册/预约等关键动作用清晰文案+按钮标注,盘点 5-10 个关键动作")
 
