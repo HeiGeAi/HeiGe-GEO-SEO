@@ -287,3 +287,7 @@ One canonical source (`source/`) transpiles to self-contained packages for Claud
 No fabricated quotes/stats/citations (GEU guardrail). llms.txt is treated as B2A infrastructure, not a ranking lever. Two human checkpoints cannot be bypassed. Citation-share numbers are calibration parameters, not eternal truths.
 
 MIT License. Built by HeiGeAi.
+
+## 更多开源工具
+
+本项目属于黑哥 AI 的开源武器库。全部开源项目的清单、用途和协议,见 [heigeai.com/opensource](https://www.heigeai.com/opensource/)。
