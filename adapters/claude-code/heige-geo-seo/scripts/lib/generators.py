@@ -308,6 +308,9 @@ def gen_graph(*nodes):
 
 def to_script(node):
     body = json.dumps(node, ensure_ascii=False, indent=2)
+    # JSON-LD 内嵌 <script> 时,字符串里的 </script> 会提前闭合标签(XSS/破坏页面)。
+    # 转义 < > &,含 </script> 的内容变 \\u003c/script\\u003e,浏览器 JSON 解析仍还原
+    body = body.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
     return '<script type="application/ld+json">\n%s\n</script>' % body
 
 
@@ -439,9 +442,12 @@ def gen_hreflang(locales, x_default=None):
     每个本地化页应自引 + 列全部 alternates + x-default 兜底。"""
     lines = []
     for lang, url in locales:
-        lines.append('<link rel="alternate" hreflang="%s" href="%s" />' % (lang, url))
+        # href/lang 过 XML 转义:带 & 查询参数的 URL 不转义会产出非法 XML(同 sitemap/feed)
+        lines.append('<link rel="alternate" hreflang="%s" href="%s" />'
+                     % (_xml_escape(lang), _xml_escape(url, {'"': "&quot;"})))
     if x_default:
-        lines.append('<link rel="alternate" hreflang="x-default" href="%s" />' % x_default)
+        lines.append('<link rel="alternate" hreflang="x-default" href="%s" />'
+                     % _xml_escape(x_default, {'"': "&quot;"}))
     return "\n".join(lines) + "\n"
 
 

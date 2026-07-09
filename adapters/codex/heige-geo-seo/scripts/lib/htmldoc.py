@@ -250,9 +250,10 @@ class HtmlDoc:
         return out
 
     def number_count(self):
-        # 先剔除 ISO 日期和版本号,避免把 2025-06-22 / 1.2.3 当成统计数字
-        text = re.sub(r"\d{4}-\d{2}-\d{2}", " ", self.text)
-        text = re.sub(r"\bv?\d+\.\d+(?:\.\d+)+\b", " ", text)
+        # 先剔除日期和版本号,避免把 2025-06-22 / 2025年6月 / 1.2.3 当成统计数字。
+        # 版本号用字母/数字边界断言而非 \b:汉字属 \w,「版本1.2.3」的 本1 之间无 \b 边界会漏剥
+        text = re.sub(r"\d{4}[-/年]\d{1,2}(?:[-/月]\d{1,2})?日?", " ", self.text)
+        text = re.sub(r"(?<![A-Za-z0-9])v?\d+\.\d+(?:\.\d+)+(?![0-9])", " ", text)
         return len(re.findall(r"\d+(?:[.,]\d+)?%?", text))
 
 
