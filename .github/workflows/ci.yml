@@ -27,7 +27,7 @@ jobs:
         run: python3 validate.py
 
       - name: 单元测试
-        run: python3 -m unittest discover -s tests -p "test_*.py"
+        run: python3 tests/run_clean.py
 
       - name: 跑通案例集
         run: |

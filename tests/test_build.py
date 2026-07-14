@@ -61,12 +61,14 @@ class TestBuild(unittest.TestCase):
                              "%s 两次构建文件哈希不一致" % adapter)
 
     def test_knowledge_content_matches_source(self):
-        src = open(os.path.join(ROOT, "source", "knowledge", "01-llm-landscape.md"),
-                   encoding="utf-8").read()
+        with open(os.path.join(ROOT, "source", "knowledge", "01-llm-landscape.md"),
+                  encoding="utf-8") as fh:
+            src = fh.read()
         for a in EXPECTED:
-            dst = open(os.path.join(ROOT, "adapters", a, "heige-geo-seo",
-                                    "knowledge", "01-llm-landscape.md"),
-                       encoding="utf-8").read()
+            with open(os.path.join(ROOT, "adapters", a, "heige-geo-seo",
+                                   "knowledge", "01-llm-landscape.md"),
+                      encoding="utf-8") as fh:
+                dst = fh.read()
             self.assertEqual(src, dst, "%s 知识库与源不一致" % a)
 
 
