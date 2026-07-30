@@ -1,14 +1,14 @@
 {
   "name": "heige-geo-seo",
-  "version": "1.11.1",
+  "version": "1.11.2",
   "adapters": {
     "claude-code": {
       "entry": "SKILL.md",
       "file_count": 48,
       "files": {
         "INSTALL.md": "420a396c40f81c3b3432908329f720e3537914da547f636bf8f886e7e2c64c23",
-        "SKILL.md": "d4806613c38166030063356b66e75f88054306b77ced56d40bbb45ed3726cb13",
-        "manifest.json": "ae4176885a2e6ca644db992e649687c2d83a58fe394d2837eafb2f9e7359f6ca",
+        "SKILL.md": "7e554432f08b3c8a92895069758d6ae0d6245d5882f6f98a150a8978efb60e85",
+        "manifest.json": "12150a8550170294ee9910920632054730a30a75e9c5a7acb0f3e4ddb2e5e3d4",
         "methodology/geo-methods.md": "53566a29c4197533cf551b8c94448a15fecb368f85283f1fe5ac97ec720c4c9b",
         "methodology/scoring-card.md": "c8a6be844dcba067a20b2f16ed382cb5a48e72e2b372434dfe23fcc51ccfa445",
         "methodology/content-engineering-scorecard.md": "db03d23debcc82f94c10ccd7e1c786b6e90a5120aa18873dca773e7955c86fdc",
@@ -61,7 +61,7 @@
       "file_count": 48,
       "files": {
         "INSTALL.md": "6b8b774e67d7d2cdd90ed4249edfe7e4ff9fe16d0f4c6f12c8f372d58f559b36",
-        "manifest.json": "ae4176885a2e6ca644db992e649687c2d83a58fe394d2837eafb2f9e7359f6ca",
+        "manifest.json": "12150a8550170294ee9910920632054730a30a75e9c5a7acb0f3e4ddb2e5e3d4",
         "AGENTS.md": "5fe61d4b62d0a8f3d653993d736e1db970bef4f565e6b6dfb0c72034c6c53965",
         "methodology/geo-methods.md": "53566a29c4197533cf551b8c94448a15fecb368f85283f1fe5ac97ec720c4c9b",
         "methodology/scoring-card.md": "c8a6be844dcba067a20b2f16ed382cb5a48e72e2b372434dfe23fcc51ccfa445",
@@ -114,10 +114,10 @@
       "entry": "SKILL.md",
       "file_count": 49,
       "files": {
-        "openclaw.json": "81f3b2f7568bf22135e267a88bdec1e40cf4943e96fe2e99fc8d9ecc77bd78f1",
+        "openclaw.json": "b67ca6ffa805d3248f622d3c55488a4843206256435e2f47427f47eb3f7a1080",
         "INSTALL.md": "d386eb899310e1a23df18c0d0269c07034e0e5523bd75d976d0af2078c23080e",
-        "SKILL.md": "d4806613c38166030063356b66e75f88054306b77ced56d40bbb45ed3726cb13",
-        "manifest.json": "ae4176885a2e6ca644db992e649687c2d83a58fe394d2837eafb2f9e7359f6ca",
+        "SKILL.md": "7e554432f08b3c8a92895069758d6ae0d6245d5882f6f98a150a8978efb60e85",
+        "manifest.json": "12150a8550170294ee9910920632054730a30a75e9c5a7acb0f3e4ddb2e5e3d4",
         "methodology/geo-methods.md": "53566a29c4197533cf551b8c94448a15fecb368f85283f1fe5ac97ec720c4c9b",
         "methodology/scoring-card.md": "c8a6be844dcba067a20b2f16ed382cb5a48e72e2b372434dfe23fcc51ccfa445",
         "methodology/content-engineering-scorecard.md": "db03d23debcc82f94c10ccd7e1c786b6e90a5120aa18873dca773e7955c86fdc",
@@ -171,7 +171,7 @@
       "files": {
         "INSTALL.md": "eaef717410b33d56e62189b094dcd3e89d7c7dc654cca01633543778f5e9621b",
         "skill.md": "e6a851d1c3952ebc26f3cfb10abc493c14b5170be13e061a23a68eff26b687e4",
-        "manifest.json": "ae4176885a2e6ca644db992e649687c2d83a58fe394d2837eafb2f9e7359f6ca",
+        "manifest.json": "12150a8550170294ee9910920632054730a30a75e9c5a7acb0f3e4ddb2e5e3d4",
         "methodology/geo-methods.md": "53566a29c4197533cf551b8c94448a15fecb368f85283f1fe5ac97ec720c4c9b",
         "methodology/scoring-card.md": "c8a6be844dcba067a20b2f16ed382cb5a48e72e2b372434dfe23fcc51ccfa445",
         "methodology/content-engineering-scorecard.md": "db03d23debcc82f94c10ccd7e1c786b6e90a5120aa18873dca773e7955c86fdc",

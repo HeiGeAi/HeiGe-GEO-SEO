@@ -7,7 +7,8 @@ import _path  # noqa: E402  (sets sys.path)
 from lib import htmldoc  # noqa: E402
 
 
-GOOD = open(_path.fixture("good_page.html"), encoding="utf-8").read()
+with open(_path.fixture("good_page.html"), encoding="utf-8") as fh:
+    GOOD = fh.read()
 
 
 class TestHtmlDoc(unittest.TestCase):
