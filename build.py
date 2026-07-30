@@ -172,7 +172,9 @@ def build():
                 continue
             for f in fs:
                 p = os.path.join(base, f)
-                recorded[os.path.relpath(p, pkg)] = sha256(p)
+                rel = os.path.relpath(p, pkg).replace(os.sep, "/")
+                recorded[rel] = sha256(p)
+        recorded = dict(sorted(recorded.items()))
         build_record["adapters"][adapter] = {
             "entry": files_written[0],
             "file_count": len(recorded),

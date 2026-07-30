@@ -24,7 +24,8 @@ class TestCli(unittest.TestCase):
             out = os.path.join(tmp, "robots.txt")
             rc = geo_cli.main(["robots", "--strategy", "expose-only", "--out", out])
             self.assertEqual(rc, 0)
-            self.assertIn("OAI-SearchBot", open(out, encoding="utf-8").read())
+            with open(out, encoding="utf-8") as fh:
+                self.assertIn("OAI-SearchBot", fh.read())
 
     def test_schema_article(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -32,7 +33,8 @@ class TestCli(unittest.TestCase):
             rc = geo_cli.main(["schema", "--type", "article", "--title", "x",
                                "--author", "张三", "--org", "示例", "--out", out])
             self.assertEqual(rc, 0)
-            self.assertIn("Article", open(out, encoding="utf-8").read())
+            with open(out, encoding="utf-8") as fh:
+                self.assertIn("Article", fh.read())
 
     def test_schema_faqpage_needs_qa(self):
         rc = geo_cli.main(["schema", "--type", "faqpage"])
@@ -47,7 +49,8 @@ class TestCli(unittest.TestCase):
             rc = geo_cli.main(["llms", "--site", "示例", "--summary", "简介",
                                "--links", links, "--out", out])
             self.assertEqual(rc, 0)
-            self.assertIn("# 示例", open(out, encoding="utf-8").read())
+            with open(out, encoding="utf-8") as fh:
+                self.assertIn("# 示例", fh.read())
 
     def test_no_subcommand_prints_help(self):
         self.assertEqual(geo_cli.main([]), 0)

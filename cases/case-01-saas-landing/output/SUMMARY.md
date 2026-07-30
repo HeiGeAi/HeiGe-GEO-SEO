@@ -6,11 +6,11 @@
 
 | 维度 | 优化前 | 优化后 |
 |---|---|---|
-| 总分 | 15/100 (危急) | 48/100 (待优化) |
-| GEO 分 | 0 | 52 |
+| 总分 | 15/100 (危急) | 50/100 (待优化) |
+| GEO 分 | 0 | 56 |
 | SEO 分 | 22 | 43 |
 
-提升 **33 分**(危急 → 待优化)。
+提升 **35 分**(危急 → 待优化)。
 
 ## 目标 AI 引擎
 
@@ -28,6 +28,6 @@ ChatGPT、Perplexity、Claude、Google AI Overviews
 
 ## 最该先修的项
 
-- B/B2 llms-full.txt / Markdown 端点(0.0/3) · 未提供
-- B/B3 ai.txt / .well-known(0.0/2) · 未提供
 - C/C2 核心 schema 覆盖(WebSite/Organization/Article)(0.0/4) · 无核心 schema
+- C/C3 Schema 丰富度(关键 schema ≥5 属性)(0.0/3) · 最大属性数 2
+- D/D1 主张密度(≥4 可抽取事实/100词)(0.0/6) · 密度 1.0/100词
