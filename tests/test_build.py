@@ -52,6 +52,12 @@ class TestBuild(unittest.TestCase):
             data = json.load(fh)
         self.assertEqual(set(data["adapters"].keys()), set(EXPECTED))
 
+    def test_build_manifest_file_paths_are_sorted(self):
+        for adapter in EXPECTED:
+            paths = list(self.record["adapters"][adapter]["files"])
+            self.assertEqual(paths, sorted(paths),
+                             "%s 文件清单顺序不稳定" % adapter)
+
     def test_build_is_deterministic(self):
         a = build_mod.build()
         b = build_mod.build()
