@@ -33,6 +33,15 @@ class TestReport(unittest.TestCase):
         self.assertEqual(b["count"], 2)
         self.assertLessEqual(b["pages"][0]["score"], b["pages"][1]["score"])
 
+    def test_batch_score_error_pages_sink_to_bottom(self):
+        # 错误页不参与「弱页优先」排序,沉底
+        b = report.batch_score([_path.fixture("good_page.html"),
+                                os.path.join(os.path.dirname(_path.fixture("good_page.html")), "no_such_file.html"),
+                                _path.fixture("poor_page.html")])
+        self.assertEqual(b["count"], 3)
+        self.assertIsNone(b["pages"][-1]["score"])
+        self.assertLessEqual(b["pages"][0]["score"], b["pages"][1]["score"])
+
     def test_batch_html(self):
         b = report.batch_score([_path.fixture("good_page.html")])
         html = report.batch_to_html(b)

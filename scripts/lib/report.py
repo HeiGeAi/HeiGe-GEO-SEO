@@ -24,7 +24,8 @@ def batch_score(paths, robots_text=None, llms_text=None, market="auto"):
                          "vetoes": r["vetoes"], "weakest": r["weakest"]})
         except Exception as e:  # noqa
             rows.append({"path": p, "score": None, "grade": "错误", "error": str(e)})
-    rows.sort(key=lambda x: (x["score"] is not None, x["score"] if x["score"] is not None else 0))
+    # 弱页优先;解析失败的错误页(score=None)沉底,不被误读成「最弱页」
+    rows.sort(key=lambda x: (x["score"] is None, x["score"] if x["score"] is not None else 0))
     return {"count": len(rows), "pages": rows,
             "avg_score": round(sum(x["score"] for x in rows if x["score"] is not None)
                                / max(1, len([x for x in rows if x["score"] is not None])), 1)}
