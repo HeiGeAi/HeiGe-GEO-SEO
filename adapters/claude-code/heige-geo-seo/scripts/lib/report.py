@@ -94,7 +94,7 @@ def to_sarif(result, page_uri="page.html"):
         "version": "2.1.0",
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "runs": [{
-            "tool": {"driver": {"name": "HeiGe-GEO-SEO", "version": "1.1.0",
+            "tool": {"driver": {"name": "HeiGe-GEO-SEO", "version": "1.11.3",
                                 "rules": rules}},
             "results": results,
         }],
