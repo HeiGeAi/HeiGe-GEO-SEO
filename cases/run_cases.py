@@ -69,7 +69,8 @@ def run_case(case_dir):
     os.makedirs(out, exist_ok=True)
 
     input_path = os.path.join(case_dir, cfg["input"])
-    html = open(input_path, encoding="utf-8").read()
+    with open(input_path, encoding="utf-8") as fh:
+        html = fh.read()
     market = cfg.get("market", "auto")
 
     # 1) baseline
