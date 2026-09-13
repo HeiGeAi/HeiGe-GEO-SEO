@@ -245,8 +245,8 @@ def _dim_A(robots, market):
         checks.append(_chk("A1", "OpenAI 检索类(OAI-SearchBot)准入", 5, 5 if ok_oai else 0))
         checks.append(_chk("A2", "Anthropic 检索类(Claude-SearchBot)准入", 5, 5 if ok_claude else 0))
         checks.append(_chk("A3", "PerplexityBot 准入", 4, 4 if ok_pplx else 0))
-    star = robots["groups"].get("*")
-    fully_closed = bool(star) and any(d.strip() == "/" for d in star["disallow"])
+    # 与 A1-A3 同一口径:Allow: / 可覆盖 Disallow: /,直接复用 _ua_allowed
+    fully_closed = not _ua_allowed(robots, "*")
     checks.append(_chk("A4", "无站点级全封锁(WAF 需另测)", 4, 0 if fully_closed else 4))
     return {"key": "A", "name": "AI 爬虫准入", "weight": 18, "checks": checks}
 

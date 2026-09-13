@@ -66,6 +66,14 @@ class TestScoring(unittest.TestCase):
         self.assertEqual(adim["earned"], 0)
         self.assertTrue(any("不可被引用" in v for v in r["vetoes"]))
 
+    def test_a4_respects_allow_override(self):
+        # A4 与 A1-A3 同口径:Disallow: / 被 Allow: / 覆盖时不算全封锁
+        robots = "User-agent: *\nDisallow: /\nAllow: /\n"
+        r = scoring.score_document(self.good, robots_text=robots, market="global")
+        adim = next(d for d in r["dimensions"] if d["key"] == "A")
+        a4 = next(c for c in adim["checks"] if c["id"] == "A4")
+        self.assertEqual(a4["earned"], a4["weight"])
+
     def test_faq_without_questions_is_flagged(self):
         html = ('<html><body><h1>x</h1><p>'
                 + ('内容 ' * 300) +
