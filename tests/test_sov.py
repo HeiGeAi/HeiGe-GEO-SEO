@@ -67,5 +67,27 @@ class TestSov(unittest.TestCase):
         self.assertIn("yuanbao", r["per_engine_mention_sov"])
 
 
+class TestNegationSentiment(unittest.TestCase):
+    """否定前缀词级甄别回归:构词成分(非常/特别/无论)不误杀,双重否定算强调。"""
+
+    CASES = [
+        ("我非常推荐品牌A,它非常好用。", "positive"),
+        ("品牌A特别好用,无论如何都值得一试。", "positive"),
+        ("没办法不推荐品牌A。", "positive"),
+        ("品牌A绝对是行业首选,无比可靠。", "positive"),
+        ("品牌A没啥问题,挺好的。", "positive"),
+        ("别用品牌A,全是问题。", "negative"),
+        ("不推荐品牌A,毛病太多。", "negative"),
+        ("他非常不推荐品牌A。", "negative"),
+        ("品牌A很差,风险极高,慎用。", "negative"),
+    ]
+
+    def test_negation_cases(self):
+        for text, want in self.CASES:
+            with self.subTest(text=text):
+                got = sov.parse_answer(text, ["品牌A"])["sentiment"].get("品牌A")
+                self.assertEqual(got, want)
+
+
 if __name__ == "__main__":
     unittest.main()

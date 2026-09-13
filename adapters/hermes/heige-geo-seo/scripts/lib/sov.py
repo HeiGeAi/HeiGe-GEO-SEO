@@ -78,10 +78,33 @@ def _hit_positions(text, word):
         start = i + len(w)
 
 
+# 高频误杀构词:这些组合里的 非/别/无/莫 是构词成分,不是否定前缀
+_NEG_FALSE_POS = ("非常", "非凡", "特别", "别致", "无比", "无论", "莫非")
+# 双重否定结构:尾部的「不」与前文合起来是强调(没办法不推荐=推荐),不算否定
+_DOUBLE_NEG = ("不得不", "不能不", "不会不", "不敢不", "没办法不")
+
+
 def _negated_before(text, i):
-    """位置 i 处的情感词是否被否定修饰:中文查前 3 字符,英文查前 2 个词。"""
+    """位置 i 处的情感词是否被否定修饰:中文查前 3 字符,英文查前 2 个词。
+
+    单字否定前缀要做词级甄别:「非常/特别/无论」里的 非/别/无 是构词成分,
+    「不得不/没办法不」这类双重否定是强调,都不算否定。
+    """
     pre = text[max(0, i - 24):i]
-    if any(n in pre[-3:] for n in _NEG_PREFIX):
+    if any(pre.endswith(d) for d in _DOUBLE_NEG):
+        return False
+    tail = pre[-3:]
+    for n in _NEG_PREFIX:
+        j = tail.rfind(n)
+        if j < 0:
+            continue
+        if len(n) == 1:
+            follow = tail[j + 1:j + 2]
+            prev = tail[j - 1:j] if j > 0 else ""
+            # 「特别/别致」的别在词尾,「非常/无论」的非/无在词头,两个方向都要查
+            if (follow and (n + follow) in _NEG_FALSE_POS) or \
+               (prev and (prev + n) in _NEG_FALSE_POS):
+                continue
         return True
     words = re.findall(r"[a-z']+", pre)
     return any(w in _EN_NEG for w in words[-2:])
