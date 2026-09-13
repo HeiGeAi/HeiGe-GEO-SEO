@@ -348,7 +348,7 @@ def _dim_D(doc):
         d2 = 3
     else:
         d2 = 0
-    checks.append(_chk("D2", "答案前置(前 100 词内给直接答案)", 5, d2))
+    checks.append(_chk("D2", "答案前置(前 140 字符内给直接答案)", 5, d2))
 
     avg = doc.avg_sentence_words()
     if 12 <= avg <= 30:
