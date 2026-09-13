@@ -480,6 +480,8 @@ def gen_baidu_push(site, token, urls, fast=False):
         "# 1) 生成 urls.txt(每行一条):\n"
         "rm -f urls.txt\n%s\n\n"
         "# 2) 推送(site 须用与推送 URL 同协议的 ICP 备案主域,token 在百度搜索资源平台后台):\n"
+        "#    注意:该接口是百度官方 http 明文接口,token 会出现在 URL 里明文传输,\n"
+        "#    别把命令贴在共享终端/CI 日志里;若百度后续开放 https endpoint 请切换。\n"
         "curl -H 'Content-Type:text/plain' --data-binary @urls.txt \"%s\"\n\n"
         "%s"
         "# 配额坑:普通收录 API 与手动提交共享每日额度(常见 10 万/天,以后台为准);\n"
