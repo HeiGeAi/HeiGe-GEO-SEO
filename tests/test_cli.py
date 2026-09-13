@@ -66,6 +66,17 @@ class TestCli(unittest.TestCase):
             with open(out, encoding="utf-8") as fh:
                 self.assertIn("# 示例", fh.read())
 
+    def test_bad_json_file_returns_2(self):
+        # 畸形 JSON 不再抛 traceback,打印原因并返回 2
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = os.path.join(tmp, "bad.json")
+            with open(bad, "w", encoding="utf-8") as fh:
+                fh.write("{not json")
+            rc = geo_cli.main(["sov", "--input", bad, "--brand", "品牌A"])
+            self.assertEqual(rc, 2)
+            rc = geo_cli.main(["measure", "--input", bad, "--brand", "品牌A"])
+            self.assertEqual(rc, 2)
+
     def test_no_subcommand_prints_help(self):
         self.assertEqual(geo_cli.main([]), 0)
 

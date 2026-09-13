@@ -41,6 +41,19 @@ def _read(path):
     return htmldoc.read_text(path)
 
 
+class _BadJson(Exception):
+    """用户提供的 JSON 文件解析失败(消息已打到 stderr),main 统一转 return 2。"""
+
+
+def _read_json(path):
+    try:
+        return json.loads(_read(path))
+    except json.JSONDecodeError as e:
+        print("文件 %s 不是合法 JSON: 第 %d 行第 %d 列: %s"
+              % (path, e.lineno, e.colno, e.msg), file=sys.stderr)
+        raise _BadJson(path)
+
+
 def _emit(text, out):
     if out:
         with open(out, "w", encoding="utf-8") as fh:
@@ -297,11 +310,11 @@ def cmd_prompts(args):
 
 
 def cmd_sov(args):
-    records = json.loads(_read(args.input))
+    records = _read_json(args.input)
     if isinstance(records, dict):
         records = records.get("records", [])
-    aliases = json.loads(_read(args.aliases)) if args.aliases else None
-    comp_domains = json.loads(_read(args.competitor_domains)) if args.competitor_domains else None
+    aliases = _read_json(args.aliases) if args.aliases else None
+    comp_domains = _read_json(args.competitor_domains) if args.competitor_domains else None
     result = sovlib.analyze(
         records, brand=args.brand, competitors=args.competitor or None,
         aliases=aliases, brand_domain=args.brand_domain,
@@ -468,11 +481,11 @@ def cmd_hreflang(args):
 
 
 def cmd_factcheck(args):
-    records = json.loads(_read(args.input))
+    records = _read_json(args.input)
     if isinstance(records, dict):
         records = records.get("records", [])
-    facts = json.loads(_read(args.facts))
-    aliases = json.loads(_read(args.aliases)) if args.aliases else None
+    facts = _read_json(args.facts)
+    aliases = _read_json(args.aliases) if args.aliases else None
     result = fclib.check(records, args.brand, facts, aliases=aliases)
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -482,10 +495,10 @@ def cmd_factcheck(args):
 
 
 def cmd_lostprompt(args):
-    records = json.loads(_read(args.input))
+    records = _read_json(args.input)
     if isinstance(records, dict):
         records = records.get("records", [])
-    aliases = json.loads(_read(args.aliases)) if args.aliases else None
+    aliases = _read_json(args.aliases) if args.aliases else None
     result = lplib.analyze(records, args.brand, args.competitor or [], aliases=aliases)
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -510,7 +523,7 @@ def cmd_internallinks(args):
 
 def cmd_cwv(args):
     if args.psi:
-        psi = json.loads(_read(args.psi))
+        psi = _read_json(args.psi)
         metrics = psi  # 期望 {lcp,inp,cls}
     else:
         metrics = {}
@@ -601,11 +614,11 @@ def cmd_measure(args):
     if not args.input:
         print("measure 非 --kit 模式需要 --input records.json(或加 --kit 出采集工具包)", file=sys.stderr)
         return 2
-    records = json.loads(_read(args.input))
+    records = _read_json(args.input)
     if isinstance(records, dict):
         records = records.get("records", [])
-    facts = json.loads(_read(args.facts)) if args.facts else None
-    aliases = json.loads(_read(args.aliases)) if args.aliases else None
+    facts = _read_json(args.facts) if args.facts else None
+    aliases = _read_json(args.aliases) if args.aliases else None
     m = measurelib.measure_all(records, args.brand, competitors=args.competitor or None,
                                facts=facts, aliases=aliases, brand_domain=args.brand_domain)
     if args.json:
@@ -1001,7 +1014,10 @@ def main(argv=None):
     if not getattr(args, "func", None):
         parser.print_help()
         return 0
-    return args.func(args)
+    try:
+        return args.func(args)
+    except _BadJson:
+        return 2
 
 
 if __name__ == "__main__":
