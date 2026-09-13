@@ -133,7 +133,11 @@ def cmd_schema(args):
             date_published=args.date_published, date_modified=args.date_modified,
             author_url=args.author_url, same_as=args.same_as or None)
     elif t == "faqpage":
-        pairs = [_split_pair(x) for x in (args.qa or [])]
+        try:
+            pairs = [_split_pair(x) for x in (args.qa or [])]
+        except ValueError as e:
+            print("参数格式错误: %s" % e, file=sys.stderr)
+            return 2
         if args.qa_file:
             for line in _read(args.qa_file).splitlines():
                 line = line.strip()
@@ -144,7 +148,11 @@ def cmd_schema(args):
             return 2
         node = generators.gen_faqpage(pairs)
     elif t == "howto":
-        steps = [_split_pair(x) for x in (args.step or [])]
+        try:
+            steps = [_split_pair(x) for x in (args.step or [])]
+        except ValueError as e:
+            print("参数格式错误: %s" % e, file=sys.stderr)
+            return 2
         if not steps:
             print("howto 需要至少一个 --step \"步骤名::说明\"", file=sys.stderr)
             return 2
@@ -446,7 +454,11 @@ def cmd_baidu_push(args):
 
 
 def cmd_hreflang(args):
-    locales = [_split_pair(x) for x in (args.locale or [])]
+    try:
+        locales = [_split_pair(x) for x in (args.locale or [])]
+    except ValueError as e:
+        print("参数格式错误: %s" % e, file=sys.stderr)
+        return 2
     if not locales:
         print("需要 --locale \"zh-CN::url\",可多次", file=sys.stderr)
         return 2

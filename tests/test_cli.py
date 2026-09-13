@@ -40,6 +40,20 @@ class TestCli(unittest.TestCase):
         rc = geo_cli.main(["schema", "--type", "faqpage"])
         self.assertEqual(rc, 2)
 
+    def test_schema_faqpage_bad_pair_returns_2(self):
+        # 缺 :: 分隔符不再抛 traceback,按参数错误返回 2
+        rc = geo_cli.main(["schema", "--type", "faqpage", "--qa", "没有分隔符的问题"])
+        self.assertEqual(rc, 2)
+
+    def test_schema_howto_bad_pair_returns_2(self):
+        rc = geo_cli.main(["schema", "--type", "howto", "--name", "x",
+                           "--step", "没有分隔符的步骤"])
+        self.assertEqual(rc, 2)
+
+    def test_hreflang_bad_pair_returns_2(self):
+        rc = geo_cli.main(["hreflang", "--locale", "zh-CN"])
+        self.assertEqual(rc, 2)
+
     def test_llms_generation(self):
         with tempfile.TemporaryDirectory() as tmp:
             links = os.path.join(tmp, "links.txt")
