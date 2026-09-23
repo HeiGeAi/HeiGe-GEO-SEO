@@ -172,13 +172,13 @@ python3 scripts/geo_cli.py score --input page.html
 python3 scripts/geo_cli.py robots --strategy expose-only --sitemap https://example.com/sitemap.xml
 
 # 生成 JSON-LD 结构化数据
-python3 scripts/geo_cli.py schema --type article --title "标题" --author "黑哥" --org "黑哥AI"
+python3 scripts/geo_cli.py schema --type article --title "标题" --author "黑哥" --org "问问黑哥"
 
 # 生成 FAQPage(实测带来 2.7 倍引用率)
 python3 scripts/geo_cli.py schema --type faqpage --qa "GEO 是什么::优化内容被 AI 引擎引用的实践"
 
 # 生成 llms.txt
-python3 scripts/geo_cli.py llms --site "黑哥AI" --summary "AI 落地实战" --links links.txt
+python3 scripts/geo_cli.py llms --site "问问黑哥" --summary "AI 落地实战" --links links.txt
 ```
 
 ## 跑通案例
@@ -253,7 +253,7 @@ build.py / validate.py  # 构建链 + 完整性自检
 
 ## 许可
 
-MIT License。出品 HeiGeAi(黑哥AI)。
+MIT License。出品 HeiGeAi(问问黑哥)。
 
 ---
 
@@ -290,4 +290,4 @@ MIT License. Built by HeiGeAi.
 
 ## 更多开源工具
 
-本项目属于黑哥 AI 的开源武器库。全部开源项目的清单、用途和协议,见 [heigeai.com/opensource](https://www.heigeai.com/opensource/)。
+本项目属于问问黑哥的开源武器库。全部开源项目的清单、用途和协议,见 [heigeai.com/opensource](https://www.heigeai.com/opensource/)。
