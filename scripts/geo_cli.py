@@ -38,7 +38,15 @@ from lib import (htmldoc, scoring, generators, instruction, prompts as promptlib
 
 def _read(path):
     # 编码自动探测(utf-8剥BOM严格→gb18030→utf-8宽松),GBK中文页和带BOM的robots都能正确读
-    return htmldoc.read_text(path)
+    try:
+        return htmldoc.read_text(path)
+    except (FileNotFoundError, IsADirectoryError, PermissionError) as error:
+        raise _BadInput("无法读取文件 %s: %s" % (path, error.strerror)) from None
+
+
+class _BadInput(Exception):
+    """Expected user input error, not a programming failure."""
+
 
 
 class _BadJson(Exception):
@@ -152,10 +160,17 @@ def cmd_schema(args):
             print("参数格式错误: %s" % e, file=sys.stderr)
             return 2
         if args.qa_file:
-            for line in _read(args.qa_file).splitlines():
+            for number, line in enumerate(_read(args.qa_file).splitlines(), 1):
                 line = line.strip()
-                if line and "::" in line:
-                    pairs.append(_split_pair(line))
+                if not line:
+                    continue
+                try:
+                    pair = _split_pair(line)
+                    if not all(pair):
+                        raise ValueError("问题和答案不能为空")
+                    pairs.append(pair)
+                except ValueError as error:
+                    raise _BadInput("%s:%d: %s" % (args.qa_file, number, error)) from None
         if not pairs:
             print("faqpage 需要至少一组 --qa \"问题::答案\"", file=sys.stderr)
             return 2
@@ -515,8 +530,18 @@ def cmd_cannibalize(args):
 
 
 def cmd_internallinks(args):
-    pages = [(p, _read(p)) for p in args.inputs]
-    result = illib.analyze(pages, base_hosts=args.host or None, home=args.home)
+    root = os.path.abspath(args.root) if args.root else os.path.commonpath(
+        [os.path.dirname(os.path.abspath(p)) for p in args.inputs])
+    def site_path(filename):
+        relative = os.path.relpath(os.path.abspath(filename), root)
+        if relative == ".." or relative.startswith(".." + os.sep):
+            raise _BadInput("文件不在站点根目录内: %s" % filename)
+        return "/" + relative.replace(os.sep, "/")
+    pages = [(site_path(p), _read(p)) for p in args.inputs]
+    home = args.home
+    if home and not home.startswith("/") and "://" not in home:
+        home = site_path(home)
+    result = illib.analyze(pages, base_hosts=args.host or None, home=home)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0 if result["orphan_count"] == 0 else 1
 
@@ -910,6 +935,7 @@ def build_parser():
     il = sub.add_parser("internal-links", help="内链/孤儿页审计(多页)")
     il.add_argument("inputs", nargs="+", help="多个 HTML 文件")
     il.add_argument("--host", action="append", help="站点域名(判带域名的链接为站内)")
+    il.add_argument("--root", help="本地站点根目录; 默认所有输入文件的共同父目录")
     il.add_argument("--home", default="/", help="首页 path(不算孤儿)")
     il.set_defaults(func=cmd_internallinks)
 
@@ -1017,6 +1043,9 @@ def main(argv=None):
     try:
         return args.func(args)
     except _BadJson:
+        return 2
+    except _BadInput as error:
+        print(str(error), file=sys.stderr)
         return 2
 
 
