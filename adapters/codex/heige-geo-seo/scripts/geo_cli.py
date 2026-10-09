@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import sys
+from urllib.parse import quote
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -536,7 +537,9 @@ def cmd_internallinks(args):
         relative = os.path.relpath(os.path.abspath(filename), root)
         if relative == ".." or relative.startswith(".." + os.sep):
             raise _BadInput("文件不在站点根目录内: %s" % filename)
-        return "/" + relative.replace(os.sep, "/")
+        # This is a filesystem name, not an already encoded URL: quote literal
+        # %, ? and # before URL normalization so distinct files cannot collapse.
+        return "/" + quote(relative.replace(os.sep, "/"), safe="/:@!$&'()*+,;=")
     pages = [(site_path(p), _read(p)) for p in args.inputs]
     home = args.home
     if home and not home.startswith("/") and "://" not in home:
