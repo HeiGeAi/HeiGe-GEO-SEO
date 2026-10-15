@@ -5,24 +5,38 @@
 
 User-agent: Baiduspider
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: Sogou web spider
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: Bingbot
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: Googlebot
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: YisouSpider
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: 360Spider
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: HaoSpider
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 # 神马(YisouSpider,UC/夸克移动)、360(360Spider)一并放行
 
@@ -30,21 +44,33 @@ Allow: /
 
 User-agent: OAI-SearchBot
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: ChatGPT-User
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: Claude-SearchBot
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: Claude-User
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: PerplexityBot
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: Perplexity-User
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 # 字节 Bytespider 抓取激进,如需限制在防火墙层加 IP/UA 拦截
 

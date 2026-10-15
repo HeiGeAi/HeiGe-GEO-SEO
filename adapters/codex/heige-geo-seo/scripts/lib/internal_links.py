@@ -7,11 +7,30 @@
 
 import posixpath
 import re
+from urllib.parse import quote
 
 from . import htmldoc
 
 # 除 http(s) 外的 URL scheme(mailto:/javascript:/tel: 等),一律非站内
 _SCHEME = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.\-]*:")
+
+
+# RFC 3986: only unreserved escapes are interchangeable with literal bytes.
+# In particular, %2F / %3F / %23 must not become URL separators.
+_UNRESERVED = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+_PATH_SAFE = "/:@!$&'()*+,;="
+
+
+def _encode_path(path):
+    """Canonical URL-path encoding, preserving already escaped reserved bytes."""
+    path = re.sub(r"%(?![0-9a-fA-F]{2})", "%25", path)
+    path = quote(path, safe=_PATH_SAFE + "%")
+
+    def canonical_escape(match):
+        char = chr(int(match.group(1), 16))
+        return char if char in _UNRESERVED else "%" + match.group(1).upper()
+
+    return re.sub(r"%([0-9a-fA-F]{2})", canonical_escape, path)
 
 
 def _strip_www(host):
@@ -42,23 +61,25 @@ def _norm(href, base_hosts, base="/"):
         rel = href.split("?")[0].split("#")[0]
         if not rel:
             return None
+        base = _encode_path(base)
         base_dir = base if base.endswith("/") else posixpath.dirname(base)
-        path = posixpath.normpath(posixpath.join(base_dir or "/", rel))
-    path = path.rstrip("/") or "/"
+        path = posixpath.normpath(posixpath.join(base_dir or "/", _encode_path(rel)))
+    path = _encode_path(path).rstrip("/") or "/"
     return path
 
 
 def _page_key(path):
     p = path.split("?")[0].split("#")[0]
     if "://" in p:
-        p = re.sub(r"^https?://[^/]+", "", p)
-    return (p.rstrip("/") or "/")
+        p = re.sub(r"^https?://[^/]+", "", p, flags=re.IGNORECASE)
+    return (_encode_path(p).rstrip("/") or "/")
 
 
 def analyze(pages, base_hosts=None, home="/"):
     """pages: list of (path_or_url, HtmlDoc|html_str)。
     注意:pages 的 key 用 URL path(如 /about)而非本地文件名(about.html),
-    否则与 HTML 里的 /about 内链对不上会全报孤儿;且应喂全站或至少所有入口页。"""
+    否则与 HTML 里的 /about 内链对不上会全报孤儿;且应喂全站或至少所有入口页。
+    Unicode/空格会统一成 URL 编码;文件名里的字面 %、?、# 需先编码。"""
     base_hosts = set(_strip_www(h) for h in (base_hosts or []))
     known = {}
     outbound = {}

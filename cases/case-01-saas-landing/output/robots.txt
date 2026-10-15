@@ -5,30 +5,48 @@
 
 User-agent: Googlebot
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: Bingbot
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: Baiduspider
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: OAI-SearchBot
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: ChatGPT-User
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: Claude-SearchBot
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: Claude-User
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: PerplexityBot
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 User-agent: Perplexity-User
 Allow: /
+Disallow: /admin/
+Disallow: /api/
 
 # AI 训练类:拒绝(只要曝光不喂训练)
 
