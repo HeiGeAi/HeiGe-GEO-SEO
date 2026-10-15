@@ -531,10 +531,12 @@ def cmd_cannibalize(args):
 
 
 def cmd_internallinks(args):
-    root = os.path.abspath(args.root) if args.root else os.path.commonpath(
-        [os.path.dirname(os.path.abspath(p)) for p in args.inputs])
+    root = os.path.realpath(args.root) if args.root else os.path.commonpath(
+        [os.path.dirname(os.path.realpath(p)) for p in args.inputs])
     def site_path(filename):
-        relative = os.path.relpath(os.path.abspath(filename), root)
+        # cwd may already resolve a symlink (e.g. macOS /var -> /private/var).
+        # Compare paths in the same namespace before checking containment.
+        relative = os.path.relpath(os.path.realpath(filename), root)
         if relative == ".." or relative.startswith(".." + os.sep):
             raise _BadInput("文件不在站点根目录内: %s" % filename)
         # This is a filesystem name, not an already encoded URL: quote literal

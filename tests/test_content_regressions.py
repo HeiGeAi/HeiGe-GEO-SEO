@@ -59,6 +59,29 @@ class ContentRegressions(unittest.TestCase):
             self.assertEqual(r.returncode,0,r.stderr)
             self.assertTrue(r.stdout)
 
+    def test_local_site_root_alias_matches_resolved_working_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = pathlib.Path(tmp)
+            root = parent / 'site'
+            root.mkdir()
+            alias = parent / 'site-alias'
+            try:
+                alias.symlink_to(root, target_is_directory=True)
+            except (OSError, NotImplementedError) as error:
+                self.skipTest(str(error))
+            (root / 'index.html').write_text('<a href="/about.html">About</a>')
+            (root / 'about.html').write_text('<a href="/index.html">Home</a>')
+            for files in [('index.html', 'about.html'),
+                          (str(alias / 'index.html'), str(root / 'about.html'))]:
+                result = self.run_cli('internal-links', *files, '--root', alias, cwd=alias)
+                self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+                self.assertEqual(json.loads(result.stdout)['orphan_count'], 0)
+            outside = parent / 'outside.html'
+            outside.write_text('outside')
+            result = self.run_cli('internal-links', outside, '--root', alias, cwd=alias)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn('文件不在站点根目录内', result.stderr)
+
 
     def test_readme_quickstart_commands_verbatim(self):
         readme = (ROOT / "README.md").read_text()
