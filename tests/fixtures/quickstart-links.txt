@@ -1,0 +1,2 @@
+https://example.com/docs | Documentation | Example documentation
+https://example.com/about | About | Example project overview

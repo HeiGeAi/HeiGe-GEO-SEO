@@ -166,7 +166,7 @@ python3 scripts/geo_cli.py attribution --log access.log   # 中外分桶+训练/
 
 ```bash
 # 给一个网页打 GEO 可被引用度分(6 维 22 项)
-python3 scripts/geo_cli.py score --input page.html
+python3 scripts/geo_cli.py score --input tests/fixtures/good_page.html
 
 # 生成 AI 爬虫 robots.txt(只曝光不喂训练)
 python3 scripts/geo_cli.py robots --strategy expose-only --sitemap https://example.com/sitemap.xml
@@ -178,7 +178,7 @@ python3 scripts/geo_cli.py schema --type article --title "标题" --author "黑�
 python3 scripts/geo_cli.py schema --type faqpage --qa "GEO 是什么::优化内容被 AI 引擎引用的实践"
 
 # 生成 llms.txt
-python3 scripts/geo_cli.py llms --site "问问黑哥" --summary "AI 落地实战" --links links.txt
+python3 scripts/geo_cli.py llms --site "问问黑哥" --summary "AI 落地实战" --links tests/fixtures/quickstart-links.txt
 ```
 
 ## 跑通案例
@@ -272,10 +272,10 @@ MIT License。出品 HeiGeAi(问问黑哥)。
 ### Quick start (zero dependencies, Python 3 only)
 
 ```bash
-python3 scripts/geo_cli.py score  --input page.html
+python3 scripts/geo_cli.py score  --input tests/fixtures/good_page.html
 python3 scripts/geo_cli.py robots --strategy expose-only
 python3 scripts/geo_cli.py schema --type faqpage --qa "What is GEO::Optimizing content to be cited by AI engines"
-python3 scripts/geo_cli.py llms   --site "Acme" --summary "..." --links links.txt
+python3 scripts/geo_cli.py llms   --site "Acme" --summary "..." --links tests/fixtures/quickstart-links.txt
 ```
 
 ### Compatible with all AI agent runtimes
@@ -291,3 +291,16 @@ MIT License. Built by HeiGeAi.
 ## 更多开源工具
 
 本项目属于问问黑哥的开源武器库。全部开源项目的清单、用途和协议,见 [heigeai.com/opensource](https://www.heigeai.com/opensource/)。
+
+
+### Local internal-link audit / 本地内链审计
+
+Run `internal-links index.html about.html docs/index.html --root . --home /index.html`
+from the local site's root. File paths map to slash-prefixed site paths relative to
+`--root`; by default the common parent of the input files is used. Supply
+`--host example.com` to count same-domain absolute links. Directory pages should
+be passed as their concrete HTML files (for example `docs/index.html`); links must
+refer to those file paths. Pretty-URL/server rewrite mappings are not inferred.
+
+本地文件按站点根目录映射为 URL path；`--home` 可传站点路径或当前工作目录下的相对文件名。
+目录首页使用实际的 `index.html` 文件路径，不自动推断服务器的伪静态映射。
