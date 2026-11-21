@@ -162,7 +162,7 @@ python3 scripts/geo_cli.py attribution --log access.log   # 中外分桶+训练/
 
 ## 快速开始
 
-零依赖,只要 Python 3。
+零依赖,只要 Python 3。以下命令都在**仓库根目录**直接运行(示例输入文件 `tests/fixtures/good_page.html` 与 `tests/fixtures/quickstart-links.txt` 已随仓库提供):
 
 ```bash
 # 给一个网页打 GEO 可被引用度分(6 维 22 项)
@@ -177,9 +177,13 @@ python3 scripts/geo_cli.py schema --type article --title "标题" --author "黑�
 # 生成 FAQPage(实测带来 2.7 倍引用率)
 python3 scripts/geo_cli.py schema --type faqpage --qa "GEO 是什么::优化内容被 AI 引擎引用的实践"
 
-# 生成 llms.txt
+# 生成 llms.txt(链接文件每行格式: URL | 名称 | 描述,描述可省略)
 python3 scripts/geo_cli.py llms --site "问问黑哥" --summary "AI 落地实战" --links tests/fixtures/quickstart-links.txt
 ```
+
+预期输出说明:
+- `score`:打印总分、档位、GEO/SEO 分、各维度得分与最该先修的 5 项(示例页输出总分 `87 / 100`,档位 `优`)。
+- `llms`:按标准 `llms.txt` 格式输出站点标题、摘要与 `## Docs` 链接列表,包含示例里的 `Documentation`、`About`、`FAQ` 名称与对应 URL(省略描述的行只渲染 `- [名称](URL)`).
 
 ## 跑通案例
 
@@ -271,12 +275,18 @@ MIT License。出品 HeiGeAi(问问黑哥)。
 
 ### Quick start (zero dependencies, Python 3 only)
 
+Run these commands from the **repository root** (sample inputs `tests/fixtures/good_page.html` and `tests/fixtures/quickstart-links.txt` are included; each line in the links file uses `URL | Name | Description`, where `Description` is optional):
+
 ```bash
 python3 scripts/geo_cli.py score  --input tests/fixtures/good_page.html
 python3 scripts/geo_cli.py robots --strategy expose-only
 python3 scripts/geo_cli.py schema --type faqpage --qa "What is GEO::Optimizing content to be cited by AI engines"
 python3 scripts/geo_cli.py llms   --site "Acme" --summary "..." --links tests/fixtures/quickstart-links.txt
 ```
+
+Expected output:
+- `score`: prints the total score (`87 / 100`), grade, GEO/SEO breakdown, dimension checks, and top 5 weakest items.
+- `llms`: prints Markdown `llms.txt` with the `# Acme` header, summary quote, and `## Docs` entries including `Documentation`, `About`, and `FAQ` with their URLs (lines without a description render without a trailing `: ...`).
 
 ### Compatible with all AI agent runtimes
 

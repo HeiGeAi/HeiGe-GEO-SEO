@@ -41,7 +41,7 @@ def _read(path):
     # 编码自动探测(utf-8剥BOM严格→gb18030→utf-8宽松),GBK中文页和带BOM的robots都能正确读
     try:
         return htmldoc.read_text(path)
-    except (FileNotFoundError, IsADirectoryError, PermissionError) as error:
+    except (FileNotFoundError, IsADirectoryError, NotADirectoryError, PermissionError) as error:
         raise _BadInput("无法读取文件 %s: %s" % (path, error.strerror)) from None
 
 
@@ -63,10 +63,42 @@ def _read_json(path):
         raise _BadJson(path)
 
 
+def _read_records(path):
+    data = _read_json(path)
+    if isinstance(data, dict):
+        if "records" not in data:
+            raise _BadInput("文件 %s 缺少 records 列表字段" % path)
+        data = data["records"]
+    if not isinstance(data, list) or not all(isinstance(item, dict) for item in data):
+        raise _BadInput("文件 %s 需要记录对象列表(或含 records 列表的对象)" % path)
+    return data
+
+
+def _read_json_dict(path, label):
+    data = _read_json(path)
+    if not isinstance(data, dict):
+        raise _BadInput("文件 %s(%s)需要 JSON 对象" % (path, label))
+    return data
+
+
+def _read_facts(path):
+    data = _read_json(path)
+    if not isinstance(data, list) or not all(isinstance(item, dict) for item in data):
+        raise _BadInput("文件 %s(facts)需要事实对象列表" % path)
+    return data
+
+
+def _write_text(path, content):
+    try:
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(content)
+    except (FileNotFoundError, IsADirectoryError, NotADirectoryError, PermissionError) as error:
+        raise _BadInput("无法写入文件 %s: %s" % (path, error.strerror)) from None
+
+
 def _emit(text, out):
     if out:
-        with open(out, "w", encoding="utf-8") as fh:
-            fh.write(text if text.endswith("\n") else text + "\n")
+        _write_text(out, text if text.endswith("\n") else text + "\n")
         print("写入 %s" % out)
     else:
         print(text)
@@ -156,7 +188,12 @@ def cmd_schema(args):
             author_url=args.author_url, same_as=args.same_as or None)
     elif t == "faqpage":
         try:
-            pairs = [_split_pair(x) for x in (args.qa or [])]
+            pairs = []
+            for x in (args.qa or []):
+                pair = _split_pair(x)
+                if not all(pair):
+                    raise ValueError("问题和答案不能为空")
+                pairs.append(pair)
         except ValueError as e:
             print("参数格式错误: %s" % e, file=sys.stderr)
             return 2
@@ -326,11 +363,10 @@ def cmd_prompts(args):
 
 
 def cmd_sov(args):
-    records = _read_json(args.input)
-    if isinstance(records, dict):
-        records = records.get("records", [])
-    aliases = _read_json(args.aliases) if args.aliases else None
-    comp_domains = _read_json(args.competitor_domains) if args.competitor_domains else None
+    records = _read_records(args.input)
+    aliases = _read_json_dict(args.aliases, "aliases") if args.aliases else None
+    comp_domains = _read_json_dict(args.competitor_domains, "competitor-domains") \
+        if args.competitor_domains else None
     result = sovlib.analyze(
         records, brand=args.brand, competitors=args.competitor or None,
         aliases=aliases, brand_domain=args.brand_domain,
@@ -497,11 +533,9 @@ def cmd_hreflang(args):
 
 
 def cmd_factcheck(args):
-    records = _read_json(args.input)
-    if isinstance(records, dict):
-        records = records.get("records", [])
-    facts = _read_json(args.facts)
-    aliases = _read_json(args.aliases) if args.aliases else None
+    records = _read_records(args.input)
+    facts = _read_facts(args.facts)
+    aliases = _read_json_dict(args.aliases, "aliases") if args.aliases else None
     result = fclib.check(records, args.brand, facts, aliases=aliases)
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -511,10 +545,8 @@ def cmd_factcheck(args):
 
 
 def cmd_lostprompt(args):
-    records = _read_json(args.input)
-    if isinstance(records, dict):
-        records = records.get("records", [])
-    aliases = _read_json(args.aliases) if args.aliases else None
+    records = _read_records(args.input)
+    aliases = _read_json_dict(args.aliases, "aliases") if args.aliases else None
     result = lplib.analyze(records, args.brand, args.competitor or [], aliases=aliases)
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
@@ -553,8 +585,7 @@ def cmd_internallinks(args):
 
 def cmd_cwv(args):
     if args.psi:
-        psi = _read_json(args.psi)
-        metrics = psi  # 期望 {lcp,inp,cls}
+        metrics = _read_json_dict(args.psi, "psi")  # 期望 {lcp,inp,cls}
     else:
         metrics = {}
         if args.lcp is not None:
@@ -591,8 +622,7 @@ def cmd_playbook(args):
         llms_text=_read(args.llms) if args.llms else None,
         competitors=args.competitor or None)
     if args.html:
-        with open(args.html, "w", encoding="utf-8") as fh:
-            fh.write(playbooklib.render_html(pb))
+        _write_text(args.html, playbooklib.render_html(pb))
         # 状态行走 stderr,保证 --json 同用时 stdout 只含 JSON,可直接重定向/进管道
         print("写入 HTML 作战手册 %s" % args.html, file=sys.stderr)
     if args.json:
@@ -644,11 +674,12 @@ def cmd_measure(args):
     if not args.input:
         print("measure 非 --kit 模式需要 --input records.json(或加 --kit 出采集工具包)", file=sys.stderr)
         return 2
-    records = _read_json(args.input)
-    if isinstance(records, dict):
-        records = records.get("records", [])
-    facts = _read_json(args.facts) if args.facts else None
-    aliases = _read_json(args.aliases) if args.aliases else None
+    if not args.brand:
+        print("measure 非 --kit 模式需要 --brand", file=sys.stderr)
+        return 2
+    records = _read_records(args.input)
+    facts = _read_facts(args.facts) if args.facts else None
+    aliases = _read_json_dict(args.aliases, "aliases") if args.aliases else None
     m = measurelib.measure_all(records, args.brand, competitors=args.competitor or None,
                                facts=facts, aliases=aliases, brand_domain=args.brand_domain)
     if args.json:
