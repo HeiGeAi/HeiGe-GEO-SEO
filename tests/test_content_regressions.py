@@ -53,11 +53,69 @@ class ContentRegressions(unittest.TestCase):
                 self.assertEqual(data['inbound_by_page']['/index.html'],2)
 
     def test_quickstart_inputs(self):
-        for args in [('score','--input','tests/fixtures/good_page.html'),
-                     ('llms','--site','Example','--summary','Example docs','--links','tests/fixtures/quickstart-links.txt')]:
-            r=self.run_cli(*args)
-            self.assertEqual(r.returncode,0,r.stderr)
-            self.assertTrue(r.stdout)
+        score_res = self.run_cli('score', '--input', 'tests/fixtures/good_page.html')
+        self.assertEqual(score_res.returncode, 0, score_res.stderr)
+        self.assertIn('总分:', score_res.stdout)
+
+        llms_res = self.run_cli('llms', '--site', 'Example', '--summary', 'Example docs',
+                                '--links', 'tests/fixtures/quickstart-links.txt')
+        self.assertEqual(llms_res.returncode, 0, llms_res.stderr)
+        self.assertIn('- [Documentation](https://example.com/docs): Example documentation', llms_res.stdout)
+        self.assertIn('- [About](https://example.com/about): Example project overview', llms_res.stdout)
+        self.assertIn('- [FAQ](https://example.com/faq)\n', llms_res.stdout)
+
+    def test_not_a_directory_and_bad_output_paths_have_no_tracebacks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            file_path = root / 'page.html'
+            file_path.write_text('<html><body>hi</body></html>')
+            not_a_dir = file_path / 'child.html'
+
+            r = self.run_cli('score', '--input', not_a_dir)
+            self.assertEqual(r.returncode, 2, r.stderr)
+            self.assertEqual(r.stdout, '')
+            self.assertIn(str(not_a_dir), r.stderr)
+            self.assertNotIn('Traceback', r.stderr)
+
+            for bad_out in [root, root / 'missing_dir' / 'out.txt']:
+                r = self.run_cli('robots', '--out', bad_out)
+                self.assertEqual(r.returncode, 2, r.stderr)
+                self.assertEqual(r.stdout, '')
+                self.assertIn(str(bad_out), r.stderr)
+                self.assertNotIn('Traceback', r.stderr)
+
+    def test_faq_cli_qa_rejects_empty_question_or_answer(self):
+        for bad in ['::answer', 'question::   ']:
+            r = self.run_cli('schema', '--type', 'faqpage', '--qa', bad)
+            self.assertEqual(r.returncode, 2, r.stderr)
+            self.assertEqual(r.stdout, '')
+            self.assertIn('问题和答案不能为空', r.stderr)
+            self.assertNotIn('Traceback', r.stderr)
+
+    def test_measure_requires_brand_and_json_shape_validation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            records = root / 'records.json'
+            records.write_text('[{"prompt":"p","engine":"豆包","answer":"foo"}]')
+            bad_shape = root / 'bad.json'
+            bad_shape.write_text('"not-a-list"')
+
+            r = self.run_cli('measure', '--input', records)
+            self.assertEqual(r.returncode, 2, r.stderr)
+            self.assertEqual(r.stdout, '')
+            self.assertIn('--brand', r.stderr)
+
+            for args in [
+                ('sov', '--input', bad_shape, '--brand', 'Foo'),
+                ('lostprompt', '--input', bad_shape, '--brand', 'Foo'),
+                ('factcheck', '--input', records, '--brand', 'Foo', '--facts', bad_shape),
+                ('measure', '--input', bad_shape, '--brand', 'Foo'),
+                ('cwv', '--psi', bad_shape),
+            ]:
+                res = self.run_cli(*args)
+                self.assertEqual(res.returncode, 2, f"{args}: {res.stderr}")
+                self.assertEqual(res.stdout, '')
+                self.assertNotIn('Traceback', res.stderr)
 
     def test_local_site_root_alias_matches_resolved_working_directory(self):
         with tempfile.TemporaryDirectory() as tmp:
